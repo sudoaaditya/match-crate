@@ -2,6 +2,9 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei"
 
 import { shades } from '../utils/colors';
+import { Physics } from "@react-three/rapier";
+import { GameContainer } from "./GameConttainer";
+import { GameObject } from "./GameObject";
 
 export default function Expericence() {
     return (
@@ -17,10 +20,11 @@ export default function Expericence() {
             <color args={[shades[4]]} attach="background" />
             <OrbitControls makeDefault />
 
-            <mesh>
-                <boxGeometry args={[1, 1, 1]} />
-                <meshBasicMaterial color={"red"} />
-            </mesh>
+            <Physics debug>
+
+                <GameContainer />
+                <GameObject />
+            </Physics>
         </Canvas>
     )
 }
