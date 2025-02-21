@@ -1,15 +1,16 @@
 import { RigidBody } from "@react-three/rapier"
-import { BoxGeometry, MeshBasicMaterial } from "three"
+import { BoxGeometry, FrontSide, MeshBasicMaterial } from "three"
 import { shades } from "../utils/colors";
 
 
 export const GameContainer = () => {
 
-    const boxGeometry = new BoxGeometry(1, 1, 1);
+    const boxGeometry = new BoxGeometry(1, 1, 1, 2, 2, 2);
 
     const wallMaterial = new MeshBasicMaterial({
         color: shades[0], transparent: true,
-        opacity: 0, alphaTest: 0.1
+        opacity: 0, alphaTest: 0.1,
+        side: FrontSide,
     })
 
     const wallBottomMaterial = new MeshBasicMaterial({ color: shades[7] })
@@ -27,29 +28,29 @@ export const GameContainer = () => {
             <mesh
                 geometry={boxGeometry}
                 material={wallMaterial}
-                position={[-5, -2.5, 0]}
-                scale={[0.5, 10, 10]}
+                position={[-5, 2, 0]}
+                scale={[0.5, 20, 10]}
             />
 
             <mesh
                 geometry={boxGeometry}
                 material={wallMaterial}
-                position={[5, -2.5, 0]}
-                scale={[0.5, 10, 10]}
+                position={[5, 2, 0]}
+                scale={[0.5, 20, 10]}
             />
 
             <mesh
                 geometry={boxGeometry}
                 material={wallMaterial}
-                position={[0, -2.5, 5]}
-                scale={[10, 10, 0.5]}
+                position={[0, 2, 5]}
+                scale={[10, 20, 0.5]}
             />
 
             <mesh
                 geometry={boxGeometry}
                 material={wallMaterial}
-                position={[0, -2.5, -5]}
-                scale={[10, 10, 0.5]}
+                position={[0, 2, -5]}
+                scale={[10, 20, 0.5]}
             />
         </RigidBody>
     )

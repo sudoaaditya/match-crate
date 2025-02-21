@@ -1,26 +1,27 @@
 import { InstancedRigidBodies } from "@react-three/rapier"
-import { useMemo, useRef } from "react"
+import { memo, useMemo, useRef } from "react"
 import * as THREE from "three";
 import niceColors from 'nice-color-palettes';
-// import { tints } from "../utils/colors";
 
-export const GameObject = ({
+export const GameObject = memo(({
     geometry = new THREE.SphereGeometry(0.5, 32, 32),
     instancesCount = 15,
-    colliderType = "ball"
+    colliderType = "ball",
+    forceCoeff = 1
 }) => {
 
     const gameObj = useRef(null);
     const instancedMeshRef = useRef(null);
-    const color = niceColors[Math.floor(Math.random() * 13)][Math.floor(Math.random() * 5)]
+    const color = niceColors[Math.floor(Math.random() * 25)][Math.floor(Math.random() * 5)];
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({color: color}), []);
 
     const getRandomImulse = () => {
         const impulse = new THREE.Vector3();
 
-        impulse.x = (Math.random() * 2) * (Math.random() < 0.5 ? -1 : 1);
-        // impulse.y = (Math.random() * 10) * (Math.random() < 0.5 ? -1 : 1);
-        impulse.y = (0.5);
-        impulse.z = (Math.random() * 2) * (Math.random() < 0.5 ? -1 : 1);
+        impulse.x = (Math.random() * forceCoeff) * (Math.random() < 0.5 ? -1 : 1);
+        impulse.y = Math.min(forceCoeff, 0.5);
+        impulse.z = (Math.random() * forceCoeff) * (Math.random() < 0.5 ? -1 : 1);
 
         return impulse;
     }
@@ -32,14 +33,14 @@ export const GameObject = ({
 
     const handleClick = (e) => {
         // console.log(e.instanceId)
-        if(gameObj.current) {
+        if (gameObj.current) {
             gameObj.current[e.instanceId].applyImpulse(getRandomImulse(), true)
         }
     }
 
     const instancess = useMemo(() => {
         let instance = [];
-        for(var i = 0; i < instancesCount; i++) {
+        for (var i = 0; i < instancesCount; i++) {
             instance.push({
                 key: `instance_${i}`,
                 position: [getRandomPos(3, true), (Math.random() * 0.5 * (Math.random() < 0.5 ? -1 : 1)), getRandomPos(3, false)]
@@ -67,19 +68,14 @@ export const GameObject = ({
             canSleep={false}
             instances={instancess}
             friction={0.1}
-            linearDamping={0.5}
-            angularDamping={0.5}
         >
-            <instancedMesh 
-                ref={instancedMeshRef} 
-                args={[null, null, instancesCount]} 
+            <instancedMesh
+                ref={instancedMeshRef}
+                args={[geometry, material, instancesCount]}
                 onClick={handleClick}
-                geometry={geometry}
-            >
-                <meshStandardMaterial color={color} /> 
-            </instancedMesh>
+            />
         </InstancedRigidBodies>
     )
-}
+})
 
 // Maroonish Color : DC465A
