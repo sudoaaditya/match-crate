@@ -2,6 +2,7 @@ import { InstancedRigidBodies } from "@react-three/rapier"
 import { memo, useMemo, useRef } from "react"
 import * as THREE from "three";
 import niceColors from 'nice-color-palettes';
+import { texRandomizer } from "../utils/helpers";
 
 export const GameObject = memo(({
     geometry = new THREE.SphereGeometry(0.5, 32, 32),
@@ -14,7 +15,17 @@ export const GameObject = memo(({
     const instancedMeshRef = useRef(null);
     const color = niceColors[Math.floor(Math.random() * 25)][Math.floor(Math.random() * 5)];
 
-    const material = useMemo(() => new THREE.MeshStandardMaterial({color: color}), []);
+    const texLoader = new THREE.TextureLoader();
+
+    const material = useMemo(() => { 
+        let mat = new THREE.MeshStandardMaterial({color: color})
+        if(colliderType === "ball") {
+            const tex = texLoader.load(texRandomizer());
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            mat.map = tex;
+        }
+        return mat;
+    }, []);
 
     const getRandomImulse = () => {
         const impulse = new THREE.Vector3();
@@ -67,7 +78,8 @@ export const GameObject = memo(({
             colliders={colliderType}
             canSleep={false}
             instances={instancess}
-            friction={0.1}
+            friction={0.5}
+            restitution={0}
         >
             <instancedMesh
                 ref={instancedMeshRef}

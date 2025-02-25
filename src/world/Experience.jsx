@@ -42,6 +42,12 @@ export default function Expericence() {
             forceCoeff: 0.2 
         },
         { 
+            geometry: new THREE.IcosahedronGeometry(0.4, 16), 
+            instancesCount: getMultiplierOfThree(), 
+            colliderType: "ball", 
+            forceCoeff: 0.2 
+        },
+        { 
             geometry: new THREE.BoxGeometry(0.9, 0.9, 0.9), 
             instancesCount: getMultiplierOfThree(), 
             colliderType: "cuboid", 
@@ -78,7 +84,7 @@ export default function Expericence() {
             frameloop={frameloop}
         >
             <color args={[shades[4]]} attach="background" />
-            {/* <OrbitControls makeDefault /> */}
+            <OrbitControls makeDefault />
             <ambientLight intensity={2} />
 
             <Physics /* debug */>
