@@ -17,9 +17,9 @@ export const GameObject = memo(({
 
     const texLoader = new THREE.TextureLoader();
 
-    const material = useMemo(() => { 
-        let mat = new THREE.MeshStandardMaterial({color: color})
-        if(colliderType === "ball") {
+    const material = useMemo(() => {
+        let mat = new THREE.MeshStandardMaterial({ color: color })
+        if (colliderType === "ball") {
             const tex = texLoader.load(texRandomizer());
             tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
             mat.map = tex;

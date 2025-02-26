@@ -6,7 +6,7 @@ const getDevicePixelRatio = () => {
 }
 
 const getMultiplierOfThree = () => {
-    let number = 12 + Math.floor((Math.random() * 60));
+    let number = 15 + Math.floor((Math.random() * 60));
     let mod = number % 3;
 
     return mod === 0 ? number : (number - mod);
@@ -25,7 +25,7 @@ const texRandomizer = () => {
         '/assets/textures/bw_stripes_9.png',
     ];
 
-    let randomTexIdx =  Math.floor(Math.random() * texArray.length)
+    let randomTexIdx = Math.floor(Math.random() * texArray.length)
     return texArray[randomTexIdx];
 }
 

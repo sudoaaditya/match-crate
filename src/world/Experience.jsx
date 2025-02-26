@@ -23,47 +23,47 @@ export default function Expericence() {
     }, []);
 
     const gameObjects = useMemo(() => ([
-        { 
-            geometry: new THREE.SphereGeometry(0.45, 16, 16), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "ball", 
-            forceCoeff: 1.5 
+        {
+            geometry: new THREE.SphereGeometry(0.45, 16, 16),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "ball",
+            forceCoeff: 1.5
         },
-        { 
-            geometry: new THREE.SphereGeometry(0.3, 16, 16), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "ball", 
-            forceCoeff: 1 
+        {
+            geometry: new THREE.SphereGeometry(0.3, 16, 16),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "ball",
+            forceCoeff: 1
         },
-        { 
-            geometry: new THREE.IcosahedronGeometry(0.2, 16), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "ball", 
-            forceCoeff: 0.2 
+        {
+            geometry: new THREE.IcosahedronGeometry(0.2, 16),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "ball",
+            forceCoeff: 0.2
         },
-        { 
-            geometry: new THREE.IcosahedronGeometry(0.4, 16), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "ball", 
-            forceCoeff: 0.2 
+        {
+            geometry: new THREE.IcosahedronGeometry(0.4, 16),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "ball",
+            forceCoeff: 0.2
         },
-        { 
-            geometry: new THREE.BoxGeometry(0.9, 0.9, 0.9), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "cuboid", 
-            forceCoeff: 2 
+        {
+            geometry: new THREE.BoxGeometry(0.9, 0.9, 0.9),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "cuboid",
+            forceCoeff: 2
         },
-        { 
-            geometry: new THREE.BoxGeometry(0.8, 0.2, 0.6), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "cuboid", 
-            forceCoeff: 0.4 
+        {
+            geometry: new THREE.BoxGeometry(0.8, 0.2, 0.6),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "cuboid",
+            forceCoeff: 0.4
         },
-        { 
-            geometry: new THREE.BoxGeometry(0.2, 0.4, 0.3), 
-            instancesCount: getMultiplierOfThree(), 
-            colliderType: "cuboid", 
-            forceCoeff: 0.2 
+        {
+            geometry: new THREE.BoxGeometry(0.2, 0.4, 0.3),
+            instancesCount: getMultiplierOfThree(),
+            colliderType: "cuboid",
+            forceCoeff: 0.2
         }
     ]), []);
 
@@ -90,10 +90,10 @@ export default function Expericence() {
             <Physics /* debug */>
 
                 <GameContainer />
-                {gameObjects.map((obj, idx) => 
-                    <GameObject 
-                        key={idx} 
-                        geometry={obj.geometry} 
+                {gameObjects.map((obj, idx) =>
+                    <GameObject
+                        key={idx}
+                        geometry={obj.geometry}
                         instancesCount={obj.instancesCount}
                         colliderType={obj.colliderType}
                         forceCoeff={obj.forceCoeff}
