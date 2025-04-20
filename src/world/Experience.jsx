@@ -15,6 +15,7 @@ export default function Expericence() {
 
     const [dpr, setDpr] = useState(getDevicePixelRatio());
     const [frameloop, setFrameloop] = useState('always');
+    const gameLevel = Math.floor(Math.random() * 5);
 
     useEffect(() => {
         const handleVisibilityChange = () => setFrameloop(document.hidden ? 'never' : 'always');
@@ -25,43 +26,43 @@ export default function Expericence() {
     const gameObjects = useMemo(() => ([
         {
             geometry: new THREE.SphereGeometry(0.45, 16, 16),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "ball",
             forceCoeff: 1.5
         },
         {
             geometry: new THREE.SphereGeometry(0.3, 16, 16),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "ball",
             forceCoeff: 1
         },
         {
             geometry: new THREE.IcosahedronGeometry(0.2, 16),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "ball",
             forceCoeff: 0.2
         },
         {
             geometry: new THREE.IcosahedronGeometry(0.4, 16),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "ball",
             forceCoeff: 0.2
         },
         {
             geometry: new THREE.BoxGeometry(0.9, 0.9, 0.9),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "cuboid",
             forceCoeff: 2
         },
         {
             geometry: new THREE.BoxGeometry(0.8, 0.2, 0.6),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "cuboid",
             forceCoeff: 0.4
         },
         {
             geometry: new THREE.BoxGeometry(0.2, 0.4, 0.3),
-            instancesCount: getMultiplierOfThree(),
+            instancesCount: getMultiplierOfThree(gameLevel),
             colliderType: "cuboid",
             forceCoeff: 0.2
         }
