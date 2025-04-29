@@ -15,7 +15,7 @@ export const GameObject = memo(({
     const instancedMeshRef = useRef(null);
     const color = niceColors[Math.floor(Math.random() * 25)][Math.floor(Math.random() * 5)];
 
-    const texLoader = new THREE.TextureLoader();
+    const texLoader = useMemo(() => new THREE.TextureLoader(), []);
 
     const material = useMemo(() => {
         let mat = new THREE.MeshStandardMaterial({ color: color })
@@ -43,7 +43,7 @@ export const GameObject = memo(({
     }
 
     const handleClick = (e) => {
-        // console.log(e.instanceId)
+        console.log(e.instanceId)
         if (gameObj.current) {
             gameObj.current[e.instanceId].applyImpulse(getRandomImulse(), true)
         }
@@ -78,7 +78,7 @@ export const GameObject = memo(({
             colliders={colliderType}
             canSleep={false}
             instances={instancess}
-            friction={0.5}
+            friction={0.1}
             restitution={0}
         >
             <instancedMesh
