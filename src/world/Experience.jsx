@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { shades } from '../utils/colors';
 import { Physics } from "@react-three/rapier";
 
-import { GameContainer } from "./GameConttainer";
+import { GameContainer } from "./GameContainer";
 import { GameObject } from "./GameObject";
 
 import { getDevicePixelRatio, getMultiplierOfThree } from "../utils/helpers";
