@@ -5,6 +5,7 @@
  * Shape: {
  *   version: 1,
  *   lastMode: 'medium',
+ *   settings: { sound: true },
  *   modes: { easy: { unlocked: 1, stars: { "1": 3, ... } }, medium: {...}, hard: {...} }
  * }
  */
@@ -17,6 +18,7 @@ const emptyMode = () => ({ unlocked: 1, stars: {} });
 const emptyProgress = () => ({
     version: VERSION,
     lastMode: null,
+    settings: { sound: true },
     modes: { easy: emptyMode(), medium: emptyMode(), hard: emptyMode() },
 });
 
@@ -28,7 +30,7 @@ export const loadProgress = () => {
         for (const mode of Object.keys(base.modes)) {
             base.modes[mode] = { ...emptyMode(), ...saved.modes?.[mode] };
         }
-        return { ...base, lastMode: saved.lastMode ?? null };
+        return { ...base, lastMode: saved.lastMode ?? null, settings: { ...base.settings, ...saved.settings } };
     } catch {
         return emptyProgress();
     }

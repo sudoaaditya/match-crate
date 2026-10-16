@@ -9,9 +9,10 @@ const floorMaterial = new MeshStandardMaterial({ color: shades[7], roughness: 0.
 export const FLOOR_Y = -4.75;   // top surface of the floor slab
 const WALL_HEIGHT = 20;
 
-// `half` is the box's half-width, sized per level (levels.js).
+// `box` holds the half-extents { x, z }, sized per level and screen shape (helpers.boxShape).
 // Walls are invisible (not rendered at all); `includeInvisible` still gives them colliders.
-export const GameContainer = ({ half = 3.6 }) => {
+export const GameContainer = ({ box = { x: 3.6, z: 3.6 } }) => {
+    const { x, z } = box;
     return (
         <RigidBody type="fixed" restitution={0.2} friction={0.3} includeInvisible>
 
@@ -19,13 +20,13 @@ export const GameContainer = ({ half = 3.6 }) => {
                 geometry={boxGeometry}
                 material={floorMaterial}
                 position={[0, -5, 0]}
-                scale={[half * 2, 0.5, half * 2]}
+                scale={[x * 2, 0.5, z * 2]}
             />
 
-            <mesh visible={false} geometry={boxGeometry} position={[-half, 2, 0]} scale={[0.5, WALL_HEIGHT, half * 2]} />
-            <mesh visible={false} geometry={boxGeometry} position={[half, 2, 0]} scale={[0.5, WALL_HEIGHT, half * 2]} />
-            <mesh visible={false} geometry={boxGeometry} position={[0, 2, half]} scale={[half * 2, WALL_HEIGHT, 0.5]} />
-            <mesh visible={false} geometry={boxGeometry} position={[0, 2, -half]} scale={[half * 2, WALL_HEIGHT, 0.5]} />
+            <mesh visible={false} geometry={boxGeometry} position={[-x, 2, 0]} scale={[0.5, WALL_HEIGHT, z * 2]} />
+            <mesh visible={false} geometry={boxGeometry} position={[x, 2, 0]} scale={[0.5, WALL_HEIGHT, z * 2]} />
+            <mesh visible={false} geometry={boxGeometry} position={[0, 2, z]} scale={[x * 2, WALL_HEIGHT, 0.5]} />
+            <mesh visible={false} geometry={boxGeometry} position={[0, 2, -z]} scale={[x * 2, WALL_HEIGHT, 0.5]} />
         </RigidBody>
     )
 }

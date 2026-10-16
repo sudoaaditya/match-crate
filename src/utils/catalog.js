@@ -13,17 +13,9 @@ import { palette, colorNames } from "./colors.js";
  * 9 models x 3 paint jobs. Materials/geometries are only built for types a level uses.
  */
 
-const TEXTURES = [
-    '/assets/textures/bw_stripes_1.jpg',
-    '/assets/textures/bw_stripes_2.jpg',
-    '/assets/textures/bw_stripes_3.jpg',
-    '/assets/textures/bw_stripes_4.jpg',
-    '/assets/textures/bw_stripes_5.jpg',
-    '/assets/textures/bw_stripes_6.jpg',
-    '/assets/textures/bw_stripes_7.jpg',
-    '/assets/textures/bw_stripes_8.png',
-    '/assets/textures/bw_stripes_9.png',
-];
+// Black/white pattern masks (256px greyscale WebP). Not used as colour: the striped
+// material paints them in two tones of the item's own colour (see stripedMaterial).
+const TEXTURES = Array.from({ length: 9 }, (_, i) => `/assets/textures/bw_stripes_${i + 1}.webp`);
 
 const MODELS = {
     Ambulance: '/assets/models/Ambulance_Car.glb',
@@ -107,7 +99,7 @@ const getTexture = (idx) => {
     if (!textures.has(idx)) {
         const tex = textureLoader.load(TEXTURES[idx]);
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 4;     // keeps fine patterns crisp on surfaces seen at an angle
         textures.set(idx, tex);
     }
     return textures.get(idx);
@@ -138,13 +130,46 @@ const getItemGeometry = (typeId) => {
 const hasItemGeometry = (typeId) => geometries.has(typeId);
 const setItemGeometry = (typeId, geometry) => geometries.set(typeId, geometry);
 
+/*
+ * Striped items: the pattern mask picks between the item's colour and a contrasting tone
+ * of the same hue (darker for light colours, lighter for dark ones). Multiplying the
+ * colour by the black/white mask instead turned half of every pattern black, so
+ * striped items looked dirty and the pattern vanished on dark colours.
+ */
+const WHITE = new THREE.Color(1, 1, 1);
+// Mixed in sRGB (perceptual) space: a linear-space mix toward white washes colours out.
+const stripeTone = (hex) => {
+    const srgb = new THREE.Color(hex).convertLinearToSRGB();
+    const luma = 0.2126 * srgb.r + 0.7152 * srgb.g + 0.0722 * srgb.b;
+    const tone = luma > 0.55 ? srgb.multiplyScalar(0.55) : srgb.lerp(WHITE, 0.3);
+    return tone.convertSRGBToLinear();
+}
+
+const stripedMaterial = (hex, texIdx) => {
+    const mat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.5, map: getTexture(texIdx) });
+    const stripeColor = stripeTone(hex);
+    mat.onBeforeCompile = (shader) => {
+        shader.uniforms.stripeColor = { value: stripeColor };
+        shader.fragmentShader = shader.fragmentShader
+            .replace('#include <common>', '#include <common>\nuniform vec3 stripeColor;')
+            .replace('#include <map_fragment>', `#ifdef USE_MAP
+    float stripeMask = smoothstep(0.35, 0.65, texture2D(map, vMapUv).r);
+    diffuseColor.rgb = mix(stripeColor, diffuseColor.rgb, stripeMask);
+#endif`);
+    };
+    // Every striped material shares one compiled program; only the uniform differs.
+    mat.customProgramCacheKey = () => 'striped-two-tone';
+    return mat;
+}
+
 const getItemMaterial = (typeId) => {
     if (!materials.has(typeId)) {
         const item = getItem(typeId);
         const mat = item.model
             ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })
-            : new THREE.MeshStandardMaterial({ color: palette[item.color], roughness: 0.5 });
-        if (item.tex !== undefined) mat.map = getTexture(item.tex);
+            : item.tex !== undefined
+                ? stripedMaterial(palette[item.color], item.tex)
+                : new THREE.MeshStandardMaterial({ color: palette[item.color], roughness: 0.5 });
         materials.set(typeId, mat);
     }
     return materials.get(typeId);

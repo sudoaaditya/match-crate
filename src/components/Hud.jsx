@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useGameStore } from "../utils/store";
-import { BoltIcon, PauseIcon, SkullIcon } from "./Icons";
+import { BoltIcon, FreezeIcon, PauseIcon, SkullIcon } from "./Icons";
+import BoosterBar from "./BoosterBar";
 import PauseMenu from "./PauseMenu";
 import ResultModal from "./ResultModal";
 
@@ -13,6 +14,7 @@ const Hud = () => {
     const total = useGameStore(s => s.total);
     const status = useGameStore(s => s.status);
     const level = useGameStore(s => s.level);
+    const frozen = useGameStore(s => s.frozen > 0);
     const pause = useGameStore(s => s.pause);
     const resume = useGameStore(s => s.resume);
 
@@ -55,12 +57,16 @@ const Hud = () => {
                         Level {level.id}
                     </span>
                 </div>
-                <span className={`hud-pill hud-timer ${seconds <= 10 ? 'is-low' : ''}`}>{formatTime(seconds)}</span>
+                <span className={`hud-pill hud-timer ${frozen ? 'is-frozen' : seconds <= 10 ? 'is-low' : ''}`}>
+                    {frozen && <FreezeIcon size={14} />}
+                    {formatTime(seconds)}
+                </span>
                 <div className="hud-group">
                     <span className="hud-pill">{total - remaining} / {total}</span>
                 </div>
             </div>
 
+            {(status === 'playing' || status === 'paused') && <BoosterBar />}
             {status === 'loading' && <div className="hud-loading">Loading…</div>}
             {status === 'paused' && <PauseMenu />}
             {(status === 'won' || status === 'lost') && <ResultModal />}

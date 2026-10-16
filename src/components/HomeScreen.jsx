@@ -1,6 +1,7 @@
 import { MODES } from "../utils/levels";
 import { useGameStore } from "../utils/store";
 import { PlayIcon } from "./Icons";
+import SoundToggle from "./SoundToggle";
 
 // Decorative floating shapes: pure CSS, nothing to load.
 const FLOATERS = [
@@ -29,6 +30,8 @@ const HomeScreen = () => {
                     style={{ left: `${f.x}%`, top: `${f.y}%`, width: f.size, height: f.size, '--c': f.color, animationDelay: `${f.delay}s` }}
                 />
             ))}
+
+            <div className="home-corner"><SoundToggle /></div>
 
             <div className="home-content">
                 <h1 className="home-title">

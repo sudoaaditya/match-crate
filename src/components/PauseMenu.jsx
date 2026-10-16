@@ -1,6 +1,7 @@
 import { MODES } from "../utils/levels";
 import { useGameStore } from "../utils/store";
 import { PlayIcon } from "./Icons";
+import SoundToggle from "./SoundToggle";
 
 const PauseMenu = () => {
     const level = useGameStore(s => s.level);
@@ -11,6 +12,7 @@ const PauseMenu = () => {
     return (
         <div className="hud-overlay">
             <div className="hud-card">
+                <div className="card-corner"><SoundToggle /></div>
                 <p className="card-kicker">{MODES[level.mode].label} · Level {level.id}</p>
                 <h2>Paused</h2>
                 <div className="card-actions is-stacked">

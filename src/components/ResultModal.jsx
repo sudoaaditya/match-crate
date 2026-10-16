@@ -8,6 +8,8 @@ const ResultModal = () => {
     const level = useGameStore(s => s.level);
     const levelCount = useGameStore(s => s.levelCount);
     const timeLeft = useGameStore(s => Math.ceil(s.timeLeft));
+    const continued = useGameStore(s => s.continued);
+    const continueGame = useGameStore(s => s.continueGame);
     const retry = useGameStore(s => s.retry);
     const nextLevel = useGameStore(s => s.nextLevel);
     const quitToMap = useGameStore(s => s.quitToMap);
@@ -43,7 +45,13 @@ const ResultModal = () => {
 
                 <div className="card-actions">
                     {hasNext && <button className="btn btn-primary" onClick={nextLevel}>Next level</button>}
-                    {!won && <button className="btn btn-primary" onClick={retry}>Retry</button>}
+                    {!won && !continued && (
+                        <button className="btn btn-primary btn-continue" onClick={continueGame}>
+                            {loseReason === 'time' ? '+30 seconds' : 'Clear 3 slots'}
+                            <span className="btn-note">once per try</span>
+                        </button>
+                    )}
+                    {!won && <button className={`btn ${continued ? 'btn-primary' : 'btn-secondary'}`} onClick={retry}>Retry</button>}
                     {won && <button className="btn btn-secondary" onClick={retry}>Replay</button>}
                     <button className="btn btn-ghost" onClick={quitToMap}>Level map</button>
                 </div>

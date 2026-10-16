@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { getItem, getItemGeometry, getItemMaterial } from "../utils/catalog";
 import { shades } from "../utils/colors";
 import { FLY_MS, MERGE_MS, useGameStore } from "../utils/store";
+import { trayMetrics } from "../utils/helpers";
 
 /*
  * The tray is drawn in a screen-space overlay (<Hud>) with an orthographic camera in
@@ -126,8 +127,9 @@ export const Tray = () => {
 
     // Priority -1: before the items' callbacks, so they read this frame's layout.
     useFrame(() => {
-        layout.slot = Math.min(size.height * 0.12, (size.width * 0.94) / (capacity + 0.3));
-        layout.y = -size.height / 2 + layout.slot * 0.8;
+        const metrics = trayMetrics(size.width, size.height, capacity);
+        layout.slot = metrics.slot;
+        layout.y = metrics.y;
         // While a merging triplet and new items briefly overflow the tray, squeeze them in.
         layout.columns = Math.max(capacity, tray.length);
         layout.spacing = layout.slot * capacity / layout.columns;

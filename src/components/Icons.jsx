@@ -33,3 +33,31 @@ export const BoltIcon = (props) => (
 export const SkullIcon = (props) => (
     <Svg {...props}><path d="M12 2.5c-4.7 0-8.5 3.5-8.5 8 0 2.7 1.3 4.9 3.3 6.3V20a1.5 1.5 0 0 0 1.5 1.5h7.4a1.5 1.5 0 0 0 1.5-1.5v-3.2c2-1.4 3.3-3.6 3.3-6.3 0-4.5-3.8-8-8.5-8zM8.6 14.2a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm6.8 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4zM10.6 19v-2h1v2zm2 0v-2h1v2z" /></Svg>
 );
+
+/* ---------- boosters ---------- */
+
+export const UndoIcon = (props) => (
+    <Svg {...props}><path d="M9.5 5.5V2L3 7.5 9.5 13V9.5h4a4.5 4.5 0 0 1 0 9H8v3h5.5a7.5 7.5 0 0 0 0-15z" /></Svg>
+);
+
+export const MagnetIcon = (props) => (
+    <Svg {...props}><path d="M4 3h5v8a3 3 0 0 0 6 0V3h5v8a8 8 0 0 1-16 0zm2 2v2h1V5zm10 0v2h1V5z" /></Svg>
+);
+
+export const ShuffleIcon = (props) => (
+    <Svg {...props}><path d="M16 3h5v5l-1.8-1.8-3.6 3.6-1.4-1.4 3.6-3.6zM3 5.6L4.4 4.2 19.2 19 21 17.2V21h-4l1.8-1.8zm11.4 9.2l1.4-1.4 2.8 2.8L17.2 17.6zM4.4 19.8L3 18.4l5.4-5.4 1.4 1.4z" /></Svg>
+);
+
+export const FreezeIcon = (props) => (
+    <Svg {...props}><path d="M11 2h2v4.2l2.3-2.3 1.4 1.4L13 9v2h2l3.7-3.7 1.4 1.4L17.8 11H22v2h-4.2l2.3 2.3-1.4 1.4L15 13h-2v2l3.7 3.7-1.4 1.4-2.3-2.3V22h-2v-4.2l-2.3 2.3-1.4-1.4L11 15v-2H9l-3.7 3.7-1.4-1.4L6.2 13H2v-2h4.2L3.9 8.7l1.4-1.4L9 11h2V9L7.3 5.3l1.4-1.4L11 6.2z" /></Svg>
+);
+
+/* ---------- sound ---------- */
+
+export const SoundOnIcon = (props) => (
+    <Svg {...props}><path d="M3 9v6h4l5 5V4L7 9zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z" /></Svg>
+);
+
+export const SoundOffIcon = (props) => (
+    <Svg {...props}><path d="M3 9v6h4l5 5V4L7 9zm13.6 3l2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z" /></Svg>
+);
