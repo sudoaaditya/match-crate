@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { DEFAULT_MODE, loadLevels, resolveLevel } from "./levels.js";
+import { getLevel, resolveLevel } from "./levels.js";
 import { loadProgress, recordWin, saveProgress } from "./storage.js";
+import { addBoosters, BOOSTER_NAMES, ECONOMY, rescueBoosters, winRewards } from "./economy.js";
 import { allGroups, getGroup } from "./pile.js";
 import { playSfx, setSfxEnabled } from "./sfx.js";
 
@@ -9,7 +10,11 @@ export const FLY_MS = 380;      // pile -> tray flight
 export const MERGE_MS = 300;    // matched triplet converging and popping
 export const FREEZE_SECONDS = 10;
 export const CONTINUE_SECONDS = 30;
-export const BOOSTERS = ['undo', 'magnet', 'shuffle', 'freeze'];
+export const BOOSTERS = BOOSTER_NAMES;
+
+// Booster stock (saved; spent across levels, refilled by wins and the shop) and coins.
+export const selectBoosters = (s) => s.progress.boosters ?? {};
+export const selectCoins = (s) => s.progress.coins ?? 0;
 
 let uid = 0;
 let timers = [];
@@ -43,20 +48,17 @@ const initialProgress = loadProgress();
 setSfxEnabled(initialProgress.settings.sound);
 
 export const useGameStore = create((set, get) => ({
-    screen: 'home',         // home | modes | map | game
+    screen: 'home',         // home | map | shop (tabbed menus) | game
     progress: initialProgress,
-    result: null,           // last win: { stars, best, unlocked }
+    result: null,           // last win: { stars, best, unlocked, coins, boosters }
     status: 'idle',         // idle | loading | playing | paused | won | lost | error
     loseReason: null,       // 'time' | 'tray'
     continued: false,       // the one free continue per attempt has been used
-    mode: initialProgress.lastMode ?? DEFAULT_MODE,
-    levelCount: 0,
     level: null,            // resolved level (see levels.js)
     runId: 0,               // bump to remount the physics scene
     timeLeft: 0,
     timeTotal: 0,
     frozen: 0,              // seconds of timer freeze left
-    boosters: { undo: 0, magnet: 0, shuffle: 0, freeze: 0 },
     trayCapacity: 7,
     total: 0,
     remaining: 0,           // items still in the pile
@@ -65,7 +67,7 @@ export const useGameStore = create((set, get) => ({
     startLevel: (level) => {
         clearTimers();
         const total = level.items.reduce((sum, [, triplets]) => sum + triplets * MATCH_SIZE, 0);
-        const perBooster = level.boosters ?? 2;
+        get()._rescueBoosters();
         set(s => ({
             status: 'playing',
             loseReason: null,
@@ -76,7 +78,6 @@ export const useGameStore = create((set, get) => ({
             timeLeft: level.time,
             timeTotal: level.time,
             frozen: 0,
-            boosters: Object.fromEntries(BOOSTERS.map(b => [b, perBooster])),
             trayCapacity: level.tray ?? 7,
             total,
             remaining: total,
@@ -84,15 +85,12 @@ export const useGameStore = create((set, get) => ({
         }));
     },
 
-    // Load (cached) levels.json, apply the mode and start. Unknown ids fall back to level 1.
-    playLevel: async (id, mode = get().mode) => {
+    // Load the level (authored or generated) and start.
+    playLevel: async (id) => {
         clearTimers();
-        set({ status: 'loading', mode, screen: 'game', tray: [] });
+        set({ status: 'loading', screen: 'game', tray: [] });
         try {
-            const levels = await loadLevels();
-            const raw = levels.find(l => l.id === id) ?? levels[0];
-            set({ levelCount: levels.length });
-            get().startLevel(resolveLevel(raw, mode));
+            get().startLevel(resolveLevel(await getLevel(Math.max(1, id))));
         } catch (err) {
             console.error(err);
             set({ status: 'error' });
@@ -100,24 +98,18 @@ export const useGameStore = create((set, get) => ({
     },
 
     nextLevel: () => {
-        const { level, levelCount, playLevel } = get();
-        if (level && level.id < levelCount) playLevel(level.id + 1);
+        const { level, playLevel } = get();
+        if (level) playLevel(level.id + 1);
     },
 
     /* ---------- navigation & settings ---------- */
 
     setScreen: (screen) => set({ screen }),
 
-    selectMode: (mode) => {
-        const progress = { ...get().progress, lastMode: mode };
-        saveProgress(progress);
-        set({ mode, progress, screen: 'map' });
-    },
-
-    // Leave a level (from pause or the result card) back to the map.
-    quitToMap: () => {
+    // Leave a level (from pause or the result card) to a menu tab: 'home' or 'map'.
+    quitTo: (screen = 'map') => {
         clearTimers();
-        set({ screen: 'map', status: 'idle', level: null, tray: [] });
+        set({ screen, status: 'idle', level: null, tray: [] });
     },
 
     pause: () => { if (get().status === 'playing') set({ status: 'paused' }); },
@@ -215,15 +207,17 @@ export const useGameStore = create((set, get) => ({
     },
 
     _win: () => {
-        const { level, mode, timeLeft, timeTotal, levelCount, progress } = get();
+        const { level, timeLeft, timeTotal, progress } = get();
         const stars = starsFor(timeLeft, timeTotal);
-        const previous = progress.modes[mode]?.stars[level.id] ?? 0;
-        const next = recordWin(progress, mode, level.id, stars, levelCount);
+        const previous = progress.stars[level.id] ?? 0;
+        const rewards = winRewards({ tag: level.tag ?? 'normal', stars, previousStars: previous });
+        const won = recordWin(progress, level.id, stars);
+        const next = { ...won, coins: won.coins + rewards.coins, boosters: addBoosters(won.boosters, rewards.boosters) };
         saveProgress(next);
         set({
             status: 'won',
             progress: next,
-            result: { stars, best: stars > previous, unlocked: next.modes[mode].unlocked },
+            result: { stars, best: stars > previous, unlocked: next.unlocked, ...rewards },
         });
         playSfx('win');
     },
@@ -267,12 +261,44 @@ export const useGameStore = create((set, get) => ({
         if (get().remaining === 0 && get().tray.length === 0) get()._win();
     },
 
+    /* ---------- economy ---------- */
+
+    // Add (or with negatives, spend) boosters/coins and save.
+    _changeStock: (boosters = {}, coins = 0) => {
+        const { progress } = get();
+        const next = { ...progress, coins: progress.coins + coins, boosters: addBoosters(progress.boosters, boosters) };
+        saveProgress(next);
+        set({ progress: next });
+    },
+
+    _rescueBoosters: () => {
+        const stock = get().progress.boosters;
+        const rescued = rescueBoosters(stock);
+        if (rescued === stock) return;
+        const next = { ...get().progress, boosters: rescued };
+        saveProgress(next);
+        set({ progress: next });
+    },
+
+    // Shop: item is a booster name or 'bundle'. Returns whether the purchase went through.
+    buy: (item) => {
+        const price = item === 'bundle' ? ECONOMY.bundle.price : ECONOMY.prices[item];
+        if (price === undefined || selectCoins(get()) < price) {
+            playSfx('refused');
+            return false;
+        }
+        const boosters = item === 'bundle' ? ECONOMY.bundle.boosters : { [item]: 1 };
+        get()._changeStock(boosters, -price);
+        playSfx('match');
+        return true;
+    },
+
     /* ---------- boosters ---------- */
 
     // Whether a booster can do anything right now (for enabling its button).
     canUseBooster: (name) => {
-        const { status, boosters, tray } = get();
-        if (status !== 'playing' || boosters[name] <= 0) return false;
+        const { status, tray } = get();
+        if (status !== 'playing' || (selectBoosters(get())[name] ?? 0) <= 0) return false;
         if (name === 'undo') return !!lastActive(tray);
         if (name === 'magnet') return !!get()._magnetPlan();
         return true;
@@ -285,7 +311,7 @@ export const useGameStore = create((set, get) => ({
         }
         const ok = get()[`_${name}`]();
         if (ok !== false) {
-            set({ boosters: { ...get().boosters, [name]: get().boosters[name] - 1 } });
+            get()._changeStock({ [name]: -1 });
             playSfx(name);
         }
         return ok !== false;

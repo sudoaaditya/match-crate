@@ -61,3 +61,30 @@ export const SoundOnIcon = (props) => (
 export const SoundOffIcon = (props) => (
     <Svg {...props}><path d="M3 9v6h4l5 5V4L7 9zm13.6 3l2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z" /></Svg>
 );
+
+/* ---------- menus ---------- */
+
+export const ShopIcon = (props) => (
+    <Svg {...props}><path d="M7 7V6a5 5 0 0 1 10 0v1h3a1 1 0 0 1 1 1.1l-1.2 12A1 1 0 0 1 18.8 21H5.2a1 1 0 0 1-1-.9L3 8.1A1 1 0 0 1 4 7zm2 0h6V6a3 3 0 0 0-6 0zm-1 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z" /></Svg>
+);
+
+export const HomeIcon = (props) => (
+    <Svg {...props}><path d="M12 3.2l9 7.6-1.3 1.5L19 11.7V20a1 1 0 0 1-1 1h-4v-6h-4v6H6a1 1 0 0 1-1-1v-8.3l-.7.6L3 10.8z" /></Svg>
+);
+
+export const LevelsIcon = (props) => (
+    <Svg {...props}><path d="M4 4h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4zM4 10h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4zM4 16h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4z" /></Svg>
+);
+
+// Coin: drawn with its own colours so it reads as a coin anywhere.
+export const CoinIcon = ({ size = 20, ...props }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...props}>
+        <circle cx="12" cy="12" r="10" fill="#f5b82e" />
+        <circle cx="12" cy="12" r="7.2" fill="#ffd166" stroke="#d99a1e" strokeWidth="1.4" />
+        <path d="M12 8.2l1.2 2.5 2.7.3-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.3z" fill="#d99a1e" />
+    </svg>
+);
+
+export const ArrowDownIcon = (props) => (
+    <Svg {...props}><path d="M11 4h2v11.2l4.6-4.6 1.4 1.4-7 7-7-7 1.4-1.4 4.6 4.6z" /></Svg>
+);

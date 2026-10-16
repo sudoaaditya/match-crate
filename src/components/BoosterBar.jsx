@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BOOSTER_ROW, trayMetrics } from "../utils/helpers";
-import { BOOSTERS, useGameStore } from "../utils/store";
+import { BOOSTERS, selectBoosters, useGameStore } from "../utils/store";
 import { FreezeIcon, MagnetIcon, ShuffleIcon, UndoIcon } from "./Icons";
 
 const INFO = {
@@ -24,7 +24,7 @@ const useViewport = () => {
 const BoosterBar = () => {
     const { width, height } = useViewport();
     const capacity = useGameStore(s => s.trayCapacity);
-    const boosters = useGameStore(s => s.boosters);
+    const boosters = useGameStore(selectBoosters);
     const useBooster = useGameStore(s => s.useBooster);
     const canUseBooster = useGameStore(s => s.canUseBooster);
     // Re-render when anything that affects availability changes.
@@ -38,7 +38,7 @@ const BoosterBar = () => {
         <div className="boosters" style={{ bottom: tray.top + 6, height: BOOSTER_ROW - 8 }}>
             {BOOSTERS.map(name => {
                 const { label, Icon } = INFO[name];
-                const left = boosters[name];
+                const left = boosters[name] ?? 0;
                 return (
                     <button
                         key={name}

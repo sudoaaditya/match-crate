@@ -1,8 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import HomeScreen from "./HomeScreen";
-import ModeSelect from "./ModeSelect";
-import LevelMap from "./LevelMap";
-import { MODES } from "../utils/levels";
+import MenuLayout from "./MenuLayout";
 import { useGameStore } from "../utils/store";
 
 // The 3D game (three.js + physics, ~1 MB gzipped) is its own chunk: the menus show
@@ -15,13 +12,10 @@ const prefetchGame = () => {
   idle(() => loadGameScreen());
 };
 
-// Dev shortcut: ?level=37&mode=hard jumps straight into a level (ignores locks).
+// Dev shortcut: ?level=37 jumps straight into a level (ignores locks).
 const readUrlLevel = () => {
   const params = new URLSearchParams(window.location.search);
-  const id = parseInt(params.get('level'), 10);
-  if (!id) return null;
-  const mode = MODES[params.get('mode')] ? params.get('mode') : useGameStore.getState().mode;
-  return { id, mode };
+  return parseInt(params.get('level'), 10) || null;
 };
 
 const Loading = () => <div className="screen screen-loading">Loading…</div>;
@@ -31,8 +25,8 @@ const App = () => {
   const playLevel = useGameStore(s => s.playLevel);
 
   useEffect(() => {
-    const dev = readUrlLevel();
-    if (dev) playLevel(dev.id, dev.mode);
+    const devLevel = readUrlLevel();
+    if (devLevel) playLevel(devLevel);
     else prefetchGame();
   }, []);
 
@@ -40,9 +34,7 @@ const App = () => {
   return (
     <>
       {screen === 'game' && <Suspense fallback={<Loading />}><GameScreen /></Suspense>}
-      {screen === 'home' && <HomeScreen />}
-      {screen === 'modes' && <ModeSelect />}
-      {screen === 'map' && <LevelMap />}
+      {(screen === 'home' || screen === 'map' || screen === 'shop') && <MenuLayout screen={screen} />}
     </>
   );
 };

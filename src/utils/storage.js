@@ -1,36 +1,54 @@
+import { startingBoosters } from "./economy.js";
+
 /*
  * Player progress, saved in localStorage. Every access is guarded: storage can be
  * unavailable (private mode, blocked site data) and the game must still run.
  *
- * Shape: {
- *   version: 1,
- *   lastMode: 'medium',
- *   settings: { sound: true },
- *   modes: { easy: { unlocked: 1, stars: { "1": 3, ... } }, medium: {...}, hard: {...} }
- * }
+ * Shape (version 2, one difficulty):
+ *   { version: 2, settings: { sound }, unlocked, stars: { "1": 3, ... }, coins, boosters: { undo, ... } }
+ *
+ * Version 1 saves kept separate progress per mode (easy/medium/hard). They migrate by
+ * keeping the mode that got furthest, with its stars, coins and boosters.
  */
 
 const KEY = 'three-match-puzzle:progress';
-const VERSION = 1;
-
-const emptyMode = () => ({ unlocked: 1, stars: {} });
+const VERSION = 2;
 
 const emptyProgress = () => ({
     version: VERSION,
-    lastMode: null,
     settings: { sound: true },
-    modes: { easy: emptyMode(), medium: emptyMode(), hard: emptyMode() },
+    unlocked: 1,
+    stars: {},
+    coins: 0,
+    boosters: startingBoosters(),
 });
+
+const withDefaults = (saved) => {
+    const base = emptyProgress();
+    return {
+        ...base,
+        unlocked: saved.unlocked ?? base.unlocked,
+        stars: saved.stars ?? base.stars,
+        coins: saved.coins ?? base.coins,
+        boosters: { ...base.boosters, ...saved.boosters },
+        settings: { ...base.settings, ...saved.settings },
+    };
+}
+
+const migrateV1 = (saved) => {
+    const modes = Object.entries(saved.modes ?? {});
+    // Furthest mode wins; ties go to the mode the player last used.
+    modes.sort(([a, x], [b, y]) => (y.unlocked ?? 1) - (x.unlocked ?? 1) || (b === saved.lastMode) - (a === saved.lastMode));
+    return withDefaults({ ...(modes[0]?.[1] ?? {}), settings: saved.settings });
+}
 
 export const loadProgress = () => {
     try {
         const saved = JSON.parse(localStorage.getItem(KEY));
-        if (!saved || saved.version !== VERSION) return emptyProgress();
-        const base = emptyProgress();
-        for (const mode of Object.keys(base.modes)) {
-            base.modes[mode] = { ...emptyMode(), ...saved.modes?.[mode] };
-        }
-        return { ...base, lastMode: saved.lastMode ?? null, settings: { ...base.settings, ...saved.settings } };
+        if (!saved) return emptyProgress();
+        if (saved.version === VERSION) return withDefaults(saved);
+        if (saved.version === 1) return migrateV1(saved);
+        return emptyProgress();
     } catch {
         return emptyProgress();
     }
@@ -44,24 +62,12 @@ export const saveProgress = (progress) => {
     }
 }
 
-// Returns a new progress object with the result recorded (best stars kept, next level unlocked).
-export const recordWin = (progress, mode, levelId, stars, levelCount) => {
-    const current = progress.modes[mode] ?? emptyMode();
-    const best = Math.max(current.stars[levelId] ?? 0, stars);
-    return {
-        ...progress,
-        modes: {
-            ...progress.modes,
-            [mode]: {
-                unlocked: Math.min(levelCount || Infinity, Math.max(current.unlocked, levelId + 1)),
-                stars: { ...current.stars, [levelId]: best },
-            },
-        },
-    };
-}
+// Records a win: best stars kept, next level unlocked (levels never run out).
+export const recordWin = (progress, levelId, stars) => ({
+    ...progress,
+    unlocked: Math.max(progress.unlocked, levelId + 1),
+    stars: { ...progress.stars, [levelId]: Math.max(progress.stars[levelId] ?? 0, stars) },
+});
 
-export const totalStars = (modeProgress) =>
-    Object.values(modeProgress?.stars ?? {}).reduce((sum, s) => sum + s, 0);
-
-export const completedCount = (modeProgress) =>
-    Object.values(modeProgress?.stars ?? {}).filter(s => s > 0).length;
+export const totalStars = (progress) =>
+    Object.values(progress?.stars ?? {}).reduce((sum, s) => sum + s, 0);

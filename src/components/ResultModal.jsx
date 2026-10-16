@@ -1,21 +1,22 @@
 import { useGameStore } from "../utils/store";
-import { StarIcon } from "./Icons";
+import { CoinIcon, FreezeIcon, MagnetIcon, ShuffleIcon, StarIcon, UndoIcon } from "./Icons";
+import ExitButtons from "./ExitButtons";
+
+const BOOSTER_ICONS = { undo: UndoIcon, magnet: MagnetIcon, shuffle: ShuffleIcon, freeze: FreezeIcon };
 
 const ResultModal = () => {
     const status = useGameStore(s => s.status);
     const loseReason = useGameStore(s => s.loseReason);
     const result = useGameStore(s => s.result);
     const level = useGameStore(s => s.level);
-    const levelCount = useGameStore(s => s.levelCount);
     const timeLeft = useGameStore(s => Math.ceil(s.timeLeft));
     const continued = useGameStore(s => s.continued);
     const continueGame = useGameStore(s => s.continueGame);
     const retry = useGameStore(s => s.retry);
     const nextLevel = useGameStore(s => s.nextLevel);
-    const quitToMap = useGameStore(s => s.quitToMap);
 
     const won = status === 'won';
-    const hasNext = won && level.id < levelCount;
+    const hasNext = won;
 
     return (
         <div className="hud-overlay">
@@ -29,10 +30,19 @@ const ResultModal = () => {
                                 </span>
                             ))}
                         </div>
-                        <h2>{level.id === levelCount ? 'You beat every level!' : 'Level complete!'}</h2>
+                        <h2>Level complete!</h2>
                         <p className="card-sub">
                             {timeLeft}s to spare{result.best ? ' · New best!' : ''}
                         </p>
+                        {(result.coins > 0 || Object.keys(result.boosters ?? {}).length > 0) && (
+                            <div className="result-rewards">
+                                {result.coins > 0 && <span className="reward"><CoinIcon size={20} /> +{result.coins}</span>}
+                                {Object.entries(result.boosters ?? {}).map(([b, n]) => {
+                                    const Icon = BOOSTER_ICONS[b];
+                                    return <span key={b} className={`reward is-${b}`}><Icon size={18} /> +{n}</span>;
+                                })}
+                            </div>
+                        )}
                     </>
                 ) : (
                     <>
@@ -53,8 +63,8 @@ const ResultModal = () => {
                     )}
                     {!won && <button className={`btn ${continued ? 'btn-primary' : 'btn-secondary'}`} onClick={retry}>Retry</button>}
                     {won && <button className="btn btn-secondary" onClick={retry}>Replay</button>}
-                    <button className="btn btn-ghost" onClick={quitToMap}>Level map</button>
                 </div>
+                <ExitButtons />
             </div>
         </div>
     );

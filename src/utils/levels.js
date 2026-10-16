@@ -1,25 +1,23 @@
 import { isModelItem } from "./catalog.js";
+import { buildLevel, tagFor } from "./levelGen.js";
 
 /*
- * Raw level (levels.json, authored for medium):
+ * Levels never run out: 1–100 come from levels.json (hand-tunable), anything past the
+ * file is generated on demand by levelGen.js, deterministically from its id.
+ *
+ * Raw level (levels.json or generated, authored for medium):
  *   { id, tag: 'normal'|'hard'|'superHard', seed, time, items: [[typeId, triplets], ...], boxScale? }
- * Resolved level (what the game plays): raw + mode scaling + { mode, tray, box, boosters }.
+ * Resolved level (what the game plays): raw + { tray, box }, with item caps enforced.
  */
 
-export const MODES = {
-    easy: { label: 'Easy', time: 1.5, items: 0.75, tray: 8, boosters: 3 },
-    medium: { label: 'Medium', time: 1, items: 1, tray: 7, boosters: 2 },
-    hard: { label: 'Hard', time: 0.75, items: 1.2, tray: 7, superHardTray: 6, boosters: 1 },
-};
-
-export const DEFAULT_MODE = 'medium';
+export const TRAY_SLOTS = 7;
 
 const MAX_TRIPLETS = 40;
 const MAX_MODEL_TRIPLETS = 20;
 
 let levelsPromise = null;
 
-// One small fetch for all 100 levels, cached for the session.
+// One small fetch for the authored levels, cached for the session.
 export const loadLevels = () => {
     if (!levelsPromise) {
         levelsPromise = fetch('assets/levels/levels.json')
@@ -33,23 +31,26 @@ export const loadLevels = () => {
     return levelsPromise;
 }
 
+// Any level by id: from the file if authored, otherwise generated.
+export const rawLevel = (authored, id) => authored?.find(l => l.id === id) ?? buildLevel(id);
+
+// Just the tag (cheap: no generation needed for levels past the file).
+export const levelTag = (authored, id) => authored?.find(l => l.id === id)?.tag ?? tagFor(id);
+
+export const getLevel = async (id) => rawLevel(await loadLevels(), id);
+
 const sumTriplets = (items) => items.reduce((sum, [, n]) => sum + n, 0);
 
-// Scale the total triplet count, then walk the list adding/removing one at a time so
-// every type keeps at least one triplet and the mix stays proportional.
-const scaleItems = (rawItems, multiplier) => {
+// Safety net for hand-edited levels.json: at most 120 items, at most 60 of them models
+// (the heaviest to simulate and draw). Excess model triplets move onto shapes.
+const capItems = (rawItems) => {
     const items = rawItems.map(([t, n]) => [t, n]);
-    const total = sumTriplets(items);
-    const target = Math.min(MAX_TRIPLETS, Math.max(items.length, Math.round(total * multiplier)));
-    let diff = target - total;
     const byCount = [...items].sort((a, b) => b[1] - a[1]);
-    for (let i = 0; diff !== 0; i++) {
+    for (let i = 0, over = sumTriplets(items) - MAX_TRIPLETS; over > 0; i++) {
         const entry = byCount[i % byCount.length];
-        if (diff > 0) { entry[1]++; diff--; }
-        else if (entry[1] > 1) { entry[1]--; diff++; }
+        if (entry[1] > 1) { entry[1]--; over--; }
     }
 
-    // Models are the heaviest items to simulate/draw: cap them, moving the excess to shapes.
     const shapes = items.filter(([t]) => !isModelItem(t));
     let models = sumTriplets(items.filter(([t]) => isModelItem(t)));
     for (let i = 0; models > MAX_MODEL_TRIPLETS && shapes.length; i++) {
@@ -62,9 +63,8 @@ const scaleItems = (rawItems, multiplier) => {
     return items;
 }
 
-export const resolveLevel = (raw, modeKey = DEFAULT_MODE) => {
-    const mode = MODES[modeKey] ?? MODES[DEFAULT_MODE];
-    const items = scaleItems(raw.items, mode.items);
+export const resolveLevel = (raw) => {
+    const items = capItems(raw.items);
     const count = sumTriplets(items) * 3;
 
     // Box sized to the pile: roughly 0.9 square units of floor per item, then tightened on super hard.
@@ -72,11 +72,9 @@ export const resolveLevel = (raw, modeKey = DEFAULT_MODE) => {
 
     return {
         ...raw,
-        mode: modeKey,
         items,
-        time: Math.max(20, Math.round((raw.time * mode.time) / 5) * 5),
-        tray: raw.tag === 'superHard' && mode.superHardTray ? mode.superHardTray : mode.tray,
+        time: Math.max(20, Math.round(raw.time / 5) * 5),
+        tray: TRAY_SLOTS,
         box,
-        boosters: mode.boosters,
     };
 }
