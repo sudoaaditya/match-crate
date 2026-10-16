@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { DEFAULT_MODE, loadLevels, resolveLevel } from "./levels.js";
+import { loadProgress, recordWin, saveProgress } from "./storage.js";
 
 export const MATCH_SIZE = 3;
 export const FLY_MS = 380;      // pile -> tray flight
@@ -9,6 +10,15 @@ let uid = 0;
 let timers = [];
 const later = (fn, ms) => timers.push(setTimeout(fn, ms));
 const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+// Stars from the share of time left when the level is cleared.
+export const starsFor = (timeLeft, timeTotal) => {
+    const left = timeTotal > 0 ? timeLeft / timeTotal : 0;
+    return left >= 0.5 ? 3 : left >= 0.25 ? 2 : 1;
+}
+
+// A level is "in play" while running or paused: flights, merges and checks keep resolving.
+const inPlay = (status) => status === 'playing' || status === 'paused';
 
 // Items that still count against the tray's capacity.
 const activeCount = (tray) => tray.reduce((n, e) => n + (e.state === 'active' ? 1 : 0), 0);
@@ -22,10 +32,15 @@ const activeCount = (tray) => tray.reduce((n, e) => n + (e.state === 'active' ? 
  * The tray calls landed(uid) when an item finishes its flight, which drives merges and
  * the "tray full" check, so the visuals and the rules stay in sync.
  */
+const initialProgress = loadProgress();
+
 export const useGameStore = create((set, get) => ({
-    status: 'idle',         // idle | loading | playing | won | lost | error
+    screen: 'home',         // home | modes | map | game
+    progress: initialProgress,
+    result: null,           // last win: { stars, best, unlocked }
+    status: 'idle',         // idle | loading | playing | paused | won | lost | error
     loseReason: null,       // 'time' | 'tray'
-    mode: DEFAULT_MODE,
+    mode: initialProgress.lastMode ?? DEFAULT_MODE,
     levelCount: 0,
     level: null,            // resolved level (see levels.js)
     runId: 0,               // bump to remount the physics scene
@@ -42,6 +57,7 @@ export const useGameStore = create((set, get) => ({
         set(s => ({
             status: 'playing',
             loseReason: null,
+            result: null,
             level,
             runId: s.runId + 1,
             timeLeft: level.time,
@@ -56,7 +72,7 @@ export const useGameStore = create((set, get) => ({
     // Load (cached) levels.json, apply the mode and start. Unknown ids fall back to level 1.
     playLevel: async (id, mode = get().mode) => {
         clearTimers();
-        set({ status: 'loading', mode });
+        set({ status: 'loading', mode, screen: 'game', tray: [] });
         try {
             const levels = await loadLevels();
             const raw = levels.find(l => l.id === id) ?? levels[0];
@@ -72,6 +88,25 @@ export const useGameStore = create((set, get) => ({
         const { level, levelCount, playLevel } = get();
         if (level && level.id < levelCount) playLevel(level.id + 1);
     },
+
+    /* ---------- navigation ---------- */
+
+    setScreen: (screen) => set({ screen }),
+
+    selectMode: (mode) => {
+        const progress = { ...get().progress, lastMode: mode };
+        saveProgress(progress);
+        set({ mode, progress, screen: 'map' });
+    },
+
+    // Leave a level (from pause or the result card) back to the map.
+    quitToMap: () => {
+        clearTimers();
+        set({ screen: 'map', status: 'idle', level: null, tray: [] });
+    },
+
+    pause: () => { if (get().status === 'playing') set({ status: 'paused' }); },
+    resume: () => { if (get().status === 'paused') set({ status: 'playing' }); },
 
     retry: () => {
         const { level, startLevel } = get();
@@ -112,7 +147,7 @@ export const useGameStore = create((set, get) => ({
 
     // An item finished flying into its slot.
     landed: (entryUid) => {
-        if (get().status !== 'playing') return;
+        if (!inPlay(get().status)) return;
         const tray = get().tray.map(e => e.uid === entryUid ? { ...e, landed: true } : e);
         const entry = tray.find(e => e.uid === entryUid);
         if (!entry) return;
@@ -135,11 +170,24 @@ export const useGameStore = create((set, get) => ({
     _removeMatch: (matchId) => {
         const tray = get().tray.filter(e => e.matchId !== matchId);
         set({ tray });
-        if (get().status === 'playing' && get().remaining === 0 && tray.length === 0) {
-            set({ status: 'won' });
+        if (inPlay(get().status) && get().remaining === 0 && tray.length === 0) {
+            get()._win();
         } else if (activeCount(tray) >= get().trayCapacity && tray.every(e => e.landed)) {
             get().lose('tray');
         }
+    },
+
+    _win: () => {
+        const { level, mode, timeLeft, timeTotal, levelCount, progress } = get();
+        const stars = starsFor(timeLeft, timeTotal);
+        const previous = progress.modes[mode]?.stars[level.id] ?? 0;
+        const next = recordWin(progress, mode, level.id, stars, levelCount);
+        saveProgress(next);
+        set({
+            status: 'won',
+            progress: next,
+            result: { stars, best: stars > previous, unlocked: next.modes[mode].unlocked },
+        });
     },
 
     tick: (dt) => {
@@ -151,7 +199,7 @@ export const useGameStore = create((set, get) => ({
     },
 
     lose: (reason) => {
-        if (get().status !== 'playing') return;
+        if (!inPlay(get().status)) return;
         clearTimers();
         set({ status: 'lost', loseReason: reason });
     },
