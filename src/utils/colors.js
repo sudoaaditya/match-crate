@@ -27,4 +27,24 @@ const tints = [
     '#ffffff',
 ]
 
-export { shades, tints };
+// Item colours: picked to stay distinguishable from each other on the dark background.
+const palette = [
+    '#e63946', // 0  red
+    '#f4a261', // 1  orange
+    '#ffd166', // 2  yellow
+    '#8ac926', // 3  lime
+    '#2a9d8f', // 4  teal
+    '#1982c4', // 5  blue
+    '#6a4c93', // 6  purple
+    '#ff70a6', // 7  pink
+    '#f1faee', // 8  white
+    '#8d6e63', // 9  brown
+    '#4cc9f0', // 10 sky
+    '#06d6a0', // 11 mint
+    '#b5179e', // 12 magenta
+    '#ff9f1c', // 13 amber
+    '#adb5bd', // 14 grey
+    '#3a0ca3', // 15 indigo
+]
+
+export { shades, tints, palette };

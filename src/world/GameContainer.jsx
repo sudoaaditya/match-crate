@@ -1,57 +1,30 @@
 import { RigidBody } from "@react-three/rapier"
-import { BoxGeometry, FrontSide, MeshBasicMaterial } from "three"
+import { BoxGeometry, MeshStandardMaterial } from "three"
 import { shades } from "../utils/colors";
 
+// Shared across renders/levels: created once at module load.
+const boxGeometry = new BoxGeometry(1, 1, 1);
+const floorMaterial = new MeshStandardMaterial({ color: shades[7], roughness: 0.9 });
 
+export const BOX_HALF = 3.6;
+const WALL_HEIGHT = 20;
+
+// Walls are invisible (not rendered at all); `includeInvisible` still gives them colliders.
 export const GameContainer = () => {
-
-    const boxGeometry = new BoxGeometry(1, 1, 1, 2, 2, 2);
-
-    const wallMaterial = new MeshBasicMaterial({
-        color: shades[0], transparent: true,
-        opacity: 0, alphaTest: 0.1,
-        side: FrontSide,
-    })
-
-    const wallBottomMaterial = new MeshBasicMaterial({ color: shades[7] })
-
     return (
-        <RigidBody type="fixed" restitution={0.2} friction={0}>
+        <RigidBody type="fixed" restitution={0.2} friction={0.3} includeInvisible>
 
             <mesh
                 geometry={boxGeometry}
-                material={wallBottomMaterial}
+                material={floorMaterial}
                 position={[0, -5, 0]}
-                scale={[10, 0.5, 10]}
+                scale={[BOX_HALF * 2, 0.5, BOX_HALF * 2]}
             />
 
-            <mesh
-                geometry={boxGeometry}
-                material={wallMaterial}
-                position={[-5, 2, 0]}
-                scale={[0.5, 20, 10]}
-            />
-
-            <mesh
-                geometry={boxGeometry}
-                material={wallMaterial}
-                position={[5, 2, 0]}
-                scale={[0.5, 20, 10]}
-            />
-
-            <mesh
-                geometry={boxGeometry}
-                material={wallMaterial}
-                position={[0, 2, 5]}
-                scale={[10, 20, 0.5]}
-            />
-
-            <mesh
-                geometry={boxGeometry}
-                material={wallMaterial}
-                position={[0, 2, -5]}
-                scale={[10, 20, 0.5]}
-            />
+            <mesh visible={false} geometry={boxGeometry} position={[-BOX_HALF, 2, 0]} scale={[0.5, WALL_HEIGHT, BOX_HALF * 2]} />
+            <mesh visible={false} geometry={boxGeometry} position={[BOX_HALF, 2, 0]} scale={[0.5, WALL_HEIGHT, BOX_HALF * 2]} />
+            <mesh visible={false} geometry={boxGeometry} position={[0, 2, BOX_HALF]} scale={[BOX_HALF * 2, WALL_HEIGHT, 0.5]} />
+            <mesh visible={false} geometry={boxGeometry} position={[0, 2, -BOX_HALF]} scale={[BOX_HALF * 2, WALL_HEIGHT, 0.5]} />
         </RigidBody>
     )
 }

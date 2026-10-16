@@ -1,21 +1,35 @@
-import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei"
-import { useEffect, useMemo, useState } from "react";
-
-import { shades } from '../utils/colors';
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, useGLTF } from "@react-three/drei"
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Physics } from "@react-three/rapier";
 
+import { shades } from '../utils/colors';
+import { disposeItemResources, getItem, getItemGeometry, getItemMaterial, getModelUrl, isModelItem } from "../utils/catalog";
+import { getDevicePixelRatio, isDebug } from "../utils/helpers";
+import { MATCH_SIZE, useGameStore } from "../utils/store";
+
+import { CameraRig } from "./CameraRig";
 import { GameContainer } from "./GameContainer";
 import { GameObject } from "./GameObject";
+import { ModelObject } from "./ModelObject";
+import { Tray } from "./Tray";
 
-import { getDevicePixelRatio, getMultiplierOfThree } from "../utils/helpers";
+const DEBUG = isDebug();
 
-export default function Expericence() {
+// Mounted inside <Suspense>, so the countdown only starts once every asset is loaded.
+const GameClock = () => {
+    const tick = useGameStore(s => s.tick);
+    useFrame((_, delta) => tick(Math.min(delta, 0.1)));
+    return null;
+}
 
-    const [dpr, setDpr] = useState(getDevicePixelRatio());
+export default function Experience() {
+
+    const [dpr] = useState(getDevicePixelRatio);
     const [frameloop, setFrameloop] = useState('always');
-    const gameLevel = Math.floor(Math.random() * 5);
+    const level = useGameStore(s => s.level);
+    const runId = useGameStore(s => s.runId);
+    const status = useGameStore(s => s.status);
 
     useEffect(() => {
         const handleVisibilityChange = () => setFrameloop(document.hidden ? 'never' : 'always');
@@ -23,84 +37,51 @@ export default function Expericence() {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
-    const gameObjects = useMemo(() => ([
-        {
-            geometry: new THREE.SphereGeometry(0.45, 16, 16),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "ball",
-            forceCoeff: 1.5
-        },
-        {
-            geometry: new THREE.SphereGeometry(0.3, 16, 16),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "ball",
-            forceCoeff: 1
-        },
-        {
-            geometry: new THREE.IcosahedronGeometry(0.2, 16),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "ball",
-            forceCoeff: 0.2
-        },
-        {
-            geometry: new THREE.IcosahedronGeometry(0.4, 16),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "ball",
-            forceCoeff: 0.2
-        },
-        {
-            geometry: new THREE.BoxGeometry(0.9, 0.9, 0.9),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "cuboid",
-            forceCoeff: 2
-        },
-        {
-            geometry: new THREE.BoxGeometry(0.8, 0.2, 0.6),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "cuboid",
-            forceCoeff: 0.4
-        },
-        {
-            geometry: new THREE.BoxGeometry(0.2, 0.4, 0.3),
-            instancesCount: getMultiplierOfThree(gameLevel),
-            colliderType: "cuboid",
-            forceCoeff: 0.2
-        }
-    ]), []);
+    useEffect(() => disposeItemResources, []);
 
-    let sum = 0;
-    gameObjects.map(gm => sum += gm.instancesCount)
-    console.log(gameObjects.map(gm => gm.instancesCount), sum);
+    const groups = useMemo(() => {
+        if (!level) return [];
+        return level.items.map(([typeId, triplets], idx) => ({
+            typeId,
+            count: triplets * MATCH_SIZE,
+            collider: getItem(typeId).collider,
+            seed: level.seed * 31 + idx * 977,
+        }));
+    }, [level]);
+
+    // Kick off every model download in parallel instead of one suspense at a time.
+    useMemo(() => groups.filter(g => isModelItem(g.typeId)).forEach(g => useGLTF.preload(getModelUrl(g.typeId))), [groups]);
 
     return (
         <Canvas
             flat
-            camera={{
-                fov: 45,
-                near: 0.1,
-                far: 200,
-                position: [0, 12, 0],
-            }}
+            camera={{ fov: 45, near: 0.1, far: 200 }}
             dpr={dpr}
             frameloop={frameloop}
         >
             <color args={[shades[4]]} attach="background" />
-            <OrbitControls makeDefault />
-            <ambientLight intensity={2} />
+            <CameraRig />
+            {DEBUG && <OrbitControls makeDefault />}
 
-            <Physics /* debug */>
+            <ambientLight intensity={1.4} />
+            <directionalLight position={[4, 12, 6]} intensity={2.2} />
 
-                <GameContainer />
-                {gameObjects.map((obj, idx) =>
-                    <GameObject
-                        key={idx}
-                        geometry={obj.geometry}
-                        instancesCount={obj.instancesCount}
-                        colliderType={obj.colliderType}
-                        forceCoeff={obj.forceCoeff}
-                    />
-                )}
-            </Physics>
+            <Suspense fallback={null}>
+                <Physics key={runId} debug={DEBUG} paused={status !== 'playing'}>
+                    <GameContainer />
+                    {groups.map(g => isModelItem(g.typeId)
+                        ? <ModelObject key={g.typeId} {...g} />
+                        : <GameObject
+                            key={g.typeId}
+                            {...g}
+                            geometry={getItemGeometry(g.typeId)}
+                            material={getItemMaterial(g.typeId)}
+                        />
+                    )}
+                </Physics>
+                <Tray />
+                <GameClock />
+            </Suspense>
         </Canvas>
     )
 }
