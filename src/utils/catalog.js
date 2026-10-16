@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { palette } from "./colors";
+import { palette, colorNames } from "./colors.js";
 
 /*
  * Every matchable item type. Looks are fixed per type (never random) so three of a
@@ -8,6 +8,9 @@ import { palette } from "./colors";
  *
  * shape items : { shape, color, tex?, collider }
  * model items : { model, recolor?, collider }
+ *
+ * Generated rather than hand-listed: 9 shapes x 16 colours (+ striped variants) and
+ * 9 models x 3 paint jobs. Materials/geometries are only built for types a level uses.
  */
 
 const TEXTURES = [
@@ -35,46 +38,63 @@ const MODELS = {
 };
 
 // Geometry factories, all sized to roughly 0.8–0.9 units across.
+// `stripes`: the UVs wrap well enough to also offer a striped variant of the shape.
 const SHAPES = {
-    sphere: () => new THREE.SphereGeometry(0.42, 16, 12),
-    cube: () => new THREE.BoxGeometry(0.75, 0.75, 0.75),
-    slab: () => new THREE.BoxGeometry(0.9, 0.25, 0.6),
-    cylinder: () => new THREE.CylinderGeometry(0.32, 0.32, 0.8, 16),
-    cone: () => new THREE.ConeGeometry(0.4, 0.85, 16),
-    torus: () => new THREE.TorusGeometry(0.3, 0.13, 8, 20),
-    capsule: () => new THREE.CapsuleGeometry(0.22, 0.45, 4, 12),
-    octahedron: () => new THREE.OctahedronGeometry(0.45),
-    dodecahedron: () => new THREE.DodecahedronGeometry(0.42),
+    sphere: { make: () => new THREE.SphereGeometry(0.42, 16, 12), collider: 'ball', stripes: true },
+    cube: { make: () => new THREE.BoxGeometry(0.75, 0.75, 0.75), collider: 'cuboid', stripes: true },
+    slab: { make: () => new THREE.BoxGeometry(0.9, 0.25, 0.6), collider: 'cuboid', stripes: false },
+    cylinder: { make: () => new THREE.CylinderGeometry(0.32, 0.32, 0.8, 16), collider: 'hull', stripes: true },
+    cone: { make: () => new THREE.ConeGeometry(0.4, 0.85, 16), collider: 'hull', stripes: false },
+    torus: { make: () => new THREE.TorusGeometry(0.3, 0.13, 8, 20), collider: 'hull', stripes: true },
+    capsule: { make: () => new THREE.CapsuleGeometry(0.22, 0.45, 4, 12), collider: 'hull', stripes: true },
+    octahedron: { make: () => new THREE.OctahedronGeometry(0.45), collider: 'hull', stripes: false },
+    dodecahedron: { make: () => new THREE.DodecahedronGeometry(0.42), collider: 'hull', stripes: false },
 };
 
-const CATALOG = {
-    // shapes
-    sphere_red: { shape: 'sphere', color: 0, collider: 'ball' },
-    sphere_red_striped: { shape: 'sphere', color: 0, tex: 2, collider: 'ball' },
-    sphere_sky: { shape: 'sphere', color: 10, collider: 'ball' },
-    cube_blue: { shape: 'cube', color: 5, collider: 'cuboid' },
-    cube_yellow_striped: { shape: 'cube', color: 2, tex: 0, collider: 'cuboid' },
-    slab_orange: { shape: 'slab', color: 1, collider: 'cuboid' },
-    cylinder_purple: { shape: 'cylinder', color: 6, collider: 'hull' },
-    cone_lime: { shape: 'cone', color: 3, collider: 'hull' },
-    torus_yellow: { shape: 'torus', color: 2, collider: 'hull' },
-    torus_pink: { shape: 'torus', color: 7, collider: 'hull' },
-    capsule_mint: { shape: 'capsule', color: 11, collider: 'hull' },
-    octahedron_teal: { shape: 'octahedron', color: 4, collider: 'hull' },
-    dodecahedron_magenta: { shape: 'dodecahedron', color: 12, collider: 'hull' },
-
-    // models (+ recoloured variants: same mesh, swapped material colours)
-    tank: { model: 'Tank', collider: 'cuboid' },
-    tank_desert: { model: 'Tank', collider: 'cuboid', recolor: { Green: '#c2a36b', DarkGreen: '#8a6f3e' } },
-    light_tank: { model: 'LightTank', collider: 'cuboid' },
-    jeep: { model: 'Jeep', collider: 'cuboid' },
-    truck: { model: 'Truck', collider: 'cuboid' },
-    ambulance: { model: 'Ambulance', collider: 'cuboid' },
-    helicopter: { model: 'Helicopter', collider: 'cuboid' },
-    boat: { model: 'Boat', collider: 'cuboid' },
-    bike: { model: 'Bike', collider: 'cuboid' },
-    motorbike: { model: 'Motorbike', collider: 'cuboid' },
+// Catalog id -> key in MODELS.
+const MODEL_ITEMS = {
+    tank: 'Tank',
+    light_tank: 'LightTank',
+    jeep: 'Jeep',
+    truck: 'Truck',
+    ambulance: 'Ambulance',
+    helicopter: 'Helicopter',
+    boat: 'Boat',
+    bike: 'Bike',
+    motorbike: 'Motorbike',
 };
+
+// Model paint jobs: material-name prefix -> colour. Every model has some green parts.
+const RECOLORS = {
+    desert: { Green: '#c2a36b', DarkGreen: '#8a6f3e', LightGreen: '#d8c08a' },
+    navy: { Green: '#3d5a80', DarkGreen: '#293f5c', LightGreen: '#98c1d9' },
+};
+
+// Models that look alike in a pile (super hard levels pair them up).
+const LOOKALIKE_MODELS = [
+    ['tank', 'light_tank'],
+    ['bike', 'motorbike'],
+    ['jeep', 'truck'],
+];
+
+const shapeId = (shape, colorName, striped = false) => `${shape}_${colorName}${striped ? '_striped' : ''}`;
+const modelId = (model, paint) => paint ? `${model}_${paint}` : model;
+
+const CATALOG = {};
+for (const [shape, def] of Object.entries(SHAPES)) {
+    colorNames.forEach((name, color) => {
+        CATALOG[shapeId(shape, name)] = { shape, color, collider: def.collider };
+        if (def.stripes) {
+            CATALOG[shapeId(shape, name, true)] = { shape, color, tex: color % TEXTURES.length, collider: def.collider };
+        }
+    });
+}
+for (const [id, model] of Object.entries(MODEL_ITEMS)) {
+    CATALOG[modelId(id)] = { model, collider: 'cuboid' };
+    for (const [paint, recolor] of Object.entries(RECOLORS)) {
+        CATALOG[modelId(id, paint)] = { model, recolor, collider: 'cuboid' };
+    }
+}
 
 /* ---------- shared resource cache (one geometry/material per item type) ---------- */
 
@@ -108,7 +128,7 @@ const getItemGeometry = (typeId) => {
     if (!geometries.has(typeId)) {
         const item = getItem(typeId);
         if (item.model) throw new Error(`Model geometry for "${typeId}" not prepared yet`);
-        const geo = SHAPES[item.shape]();
+        const geo = SHAPES[item.shape].make();
         geo.computeBoundingSphere();
         geometries.set(typeId, geo);
     }
@@ -130,6 +150,18 @@ const getItemMaterial = (typeId) => {
     return materials.get(typeId);
 }
 
+// Free geometries/materials of types the current level doesn't use (textures are few; kept).
+const releaseUnusedItems = (keepIds) => {
+    const keep = new Set(keepIds);
+    for (const cache of [geometries, materials]) {
+        cache.forEach((res, id) => {
+            if (keep.has(id)) return;
+            res.dispose();
+            cache.delete(id);
+        });
+    }
+}
+
 const disposeItemResources = () => {
     geometries.forEach(g => g.dispose());
     materials.forEach(m => m.dispose());
@@ -142,6 +174,12 @@ const disposeItemResources = () => {
 export {
     CATALOG,
     MODELS,
+    SHAPES,
+    MODEL_ITEMS,
+    RECOLORS,
+    LOOKALIKE_MODELS,
+    shapeId,
+    modelId,
     getItem,
     isModelItem,
     getModelUrl,
@@ -149,5 +187,6 @@ export {
     hasItemGeometry,
     setItemGeometry,
     getItemMaterial,
+    releaseUnusedItems,
     disposeItemResources
 }

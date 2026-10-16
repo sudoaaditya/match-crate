@@ -47,4 +47,22 @@ const palette = [
     '#3a0ca3', // 15 indigo
 ]
 
-export { shades, tints, palette };
+// Names for palette indices, used to build catalog ids (e.g. "sphere_red").
+const colorNames = [
+    'red', 'orange', 'yellow', 'lime', 'teal', 'blue', 'purple', 'pink',
+    'white', 'brown', 'sky', 'mint', 'magenta', 'amber', 'grey', 'indigo',
+]
+
+// Colour pairs that read as "almost the same" in a busy pile: used by super hard levels.
+const lookalikeColors = [
+    ['orange', 'amber'],
+    ['teal', 'mint'],
+    ['blue', 'sky'],
+    ['blue', 'indigo'],
+    ['purple', 'magenta'],
+    ['red', 'pink'],
+    ['white', 'grey'],
+    ['yellow', 'amber'],
+]
+
+export { shades, tints, palette, colorNames, lookalikeColors };

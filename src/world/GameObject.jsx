@@ -3,7 +3,7 @@ import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import * as THREE from "three";
 import { createRng, randRange } from "../utils/helpers";
 import { useGameStore } from "../utils/store";
-import { BOX_HALF } from "./GameContainer";
+import { FLOOR_Y } from "./GameContainer";
 
 // Every group's body list, so a pick can wake the whole pile (sleeping bodies won't fall into the gap).
 const allBodies = new Set();
@@ -27,7 +27,9 @@ export const GameObject = memo(({
     material,
     count,
     collider = "ball",
-    seed = 1
+    seed = 1,
+    boxHalf = 3.6,
+    spawnHeight = 8
 }) => {
 
     const bodies = useRef([]);
@@ -37,13 +39,14 @@ export const GameObject = memo(({
 
     const instances = useMemo(() => {
         const rng = createRng(seed);
-        const spread = BOX_HALF - 1.2;
+        const spread = Math.max(0.6, boxHalf - 1.2);
+        const bottom = FLOOR_Y + 1;
         return Array.from({ length: count }, (_, i) => ({
             key: `${typeId}_${i}`,
-            position: [randRange(rng, -spread, spread), randRange(rng, -3.5, 7), randRange(rng, -spread, spread)],
+            position: [randRange(rng, -spread, spread), randRange(rng, bottom, bottom + spawnHeight), randRange(rng, -spread, spread)],
             rotation: [rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2],
         }));
-    }, [typeId, count, seed]);
+    }, [typeId, count, seed, boxHalf, spawnHeight]);
 
     useLayoutEffect(() => {
         meshRef.current.boundingSphere = PILE_BOUNDS;

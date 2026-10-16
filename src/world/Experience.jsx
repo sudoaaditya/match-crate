@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { Physics } from "@react-three/rapier";
 
 import { shades } from '../utils/colors';
-import { disposeItemResources, getItem, getItemGeometry, getItemMaterial, getModelUrl, isModelItem } from "../utils/catalog";
+import { disposeItemResources, releaseUnusedItems, getItem, getItemGeometry, getItemMaterial, getModelUrl, isModelItem } from "../utils/catalog";
 import { getDevicePixelRatio, isDebug } from "../utils/helpers";
 import { MATCH_SIZE, useGameStore } from "../utils/store";
 
@@ -39,13 +39,24 @@ export default function Experience() {
 
     useEffect(() => disposeItemResources, []);
 
+    // Runs after the previous level's objects have unmounted.
+    useEffect(() => {
+        if (level) releaseUnusedItems(level.items.map(([typeId]) => typeId));
+    }, [level]);
+
     const groups = useMemo(() => {
         if (!level) return [];
+        // Spread the drop over enough height that items don't spawn inside each other.
+        const total = level.items.reduce((sum, [, n]) => sum + n * MATCH_SIZE, 0);
+        const floorArea = Math.pow(2 * level.box - 1, 2);
+        const spawnHeight = Math.min(14, Math.max(6, (total * 1.5) / floorArea));
         return level.items.map(([typeId, triplets], idx) => ({
             typeId,
             count: triplets * MATCH_SIZE,
             collider: getItem(typeId).collider,
             seed: level.seed * 31 + idx * 977,
+            boxHalf: level.box,
+            spawnHeight,
         }));
     }, [level]);
 
@@ -68,7 +79,7 @@ export default function Experience() {
 
             <Suspense fallback={null}>
                 <Physics key={runId} debug={DEBUG} paused={status !== 'playing'}>
-                    <GameContainer />
+                    <GameContainer half={level?.box} />
                     {groups.map(g => isModelItem(g.typeId)
                         ? <ModelObject key={g.typeId} {...g} />
                         : <GameObject

@@ -1,24 +1,33 @@
 import { create } from "zustand";
+import { DEFAULT_MODE, loadLevels, resolveLevel } from "./levels.js";
 
 export const MATCH_SIZE = 3;
 export const FLY_MS = 380;      // pile -> tray flight
-export const POP_MS = 220;      // matched items shrinking away
+export const MERGE_MS = 300;    // matched triplet converging and popping
 
 let uid = 0;
 let timers = [];
 const later = (fn, ms) => timers.push(setTimeout(fn, ms));
 const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
 
-const activeCount = (tray) => tray.reduce((n, e) => n + (e.state === 'clearing' ? 0 : 1), 0);
+// Items that still count against the tray's capacity.
+const activeCount = (tray) => tray.reduce((n, e) => n + (e.state === 'active' ? 1 : 0), 0);
 
 /*
- * Tray entry: { uid, typeId, from: { position, quaternion }, state: 'active' | 'clearing', popAt? }
- * Entries stay in the array while their pop animation plays; layout ignores them for capacity.
+ * Tray entry: { uid, typeId, from: { position, quaternion }, state, landed, matchId?, mergeAt? }
+ *   state 'active'   : sitting in (or flying to) a slot
+ *         'matched'  : part of a completed triplet, waiting for its last item to land
+ *         'clearing' : the triplet is merging/popping (mergeAt = start time)
+ * Matched/clearing entries keep their slot until removed but don't count toward capacity.
+ * The tray calls landed(uid) when an item finishes its flight, which drives merges and
+ * the "tray full" check, so the visuals and the rules stay in sync.
  */
 export const useGameStore = create((set, get) => ({
-    status: 'idle',         // idle | playing | won | lost
+    status: 'idle',         // idle | loading | playing | won | lost | error
     loseReason: null,       // 'time' | 'tray'
-    level: null,
+    mode: DEFAULT_MODE,
+    levelCount: 0,
+    level: null,            // resolved level (see levels.js)
     runId: 0,               // bump to remount the physics scene
     timeLeft: 0,
     timeTotal: 0,
@@ -44,6 +53,26 @@ export const useGameStore = create((set, get) => ({
         }));
     },
 
+    // Load (cached) levels.json, apply the mode and start. Unknown ids fall back to level 1.
+    playLevel: async (id, mode = get().mode) => {
+        clearTimers();
+        set({ status: 'loading', mode });
+        try {
+            const levels = await loadLevels();
+            const raw = levels.find(l => l.id === id) ?? levels[0];
+            set({ levelCount: levels.length });
+            get().startLevel(resolveLevel(raw, mode));
+        } catch (err) {
+            console.error(err);
+            set({ status: 'error' });
+        }
+    },
+
+    nextLevel: () => {
+        const { level, levelCount, playLevel } = get();
+        if (level && level.id < levelCount) playLevel(level.id + 1);
+    },
+
     retry: () => {
         const { level, startLevel } = get();
         if (level) startLevel(level);
@@ -59,9 +88,9 @@ export const useGameStore = create((set, get) => ({
         if (!get().canPick()) return false;
 
         const tray = [...get().tray];
-        const entry = { uid: ++uid, typeId, from, state: 'active' };
+        const entry = { uid: ++uid, typeId, from, state: 'active', landed: false };
 
-        // Group with identical items: insert right after the last active one of this type.
+        // Group with identical items: insert right after the last one of this type still in play.
         let insertAt = tray.length;
         for (let i = tray.length - 1; i >= 0; i--) {
             if (tray[i].typeId === typeId && tray[i].state === 'active') { insertAt = i + 1; break; }
@@ -69,30 +98,47 @@ export const useGameStore = create((set, get) => ({
         tray.splice(insertAt, 0, entry);
 
         const same = tray.filter(e => e.typeId === typeId && e.state === 'active');
-        const matched = same.length >= MATCH_SIZE;
-
-        if (matched) {
-            const popAt = performance.now() + FLY_MS;
+        if (same.length >= MATCH_SIZE) {
+            const matchId = entry.uid;
             const ids = new Set(same.slice(0, MATCH_SIZE).map(e => e.uid));
             for (let i = 0; i < tray.length; i++) {
-                if (ids.has(tray[i].uid)) tray[i] = { ...tray[i], state: 'clearing', popAt };
+                if (ids.has(tray[i].uid)) tray[i] = { ...tray[i], state: 'matched', matchId };
             }
-            later(() => get()._removeEntries(ids), FLY_MS + POP_MS);
         }
 
         set({ tray, remaining: get().remaining - 1 });
-
-        if (!matched && activeCount(tray) >= get().trayCapacity) {
-            later(() => get().lose('tray'), FLY_MS + 150);
-        }
         return true;
     },
 
-    _removeEntries: (ids) => {
-        const tray = get().tray.filter(e => !ids.has(e.uid));
+    // An item finished flying into its slot.
+    landed: (entryUid) => {
+        if (get().status !== 'playing') return;
+        const tray = get().tray.map(e => e.uid === entryUid ? { ...e, landed: true } : e);
+        const entry = tray.find(e => e.uid === entryUid);
+        if (!entry) return;
+        set({ tray });
+
+        if (entry.state === 'matched') {
+            const group = tray.filter(e => e.matchId === entry.matchId);
+            if (group.every(e => e.landed)) get()._merge(entry.matchId);
+        } else if (activeCount(tray) >= get().trayCapacity && tray.every(e => e.landed)) {
+            get().lose('tray');
+        }
+    },
+
+    _merge: (matchId) => {
+        const mergeAt = performance.now();
+        set({ tray: get().tray.map(e => e.matchId === matchId ? { ...e, state: 'clearing', mergeAt } : e) });
+        later(() => get()._removeMatch(matchId), MERGE_MS);
+    },
+
+    _removeMatch: (matchId) => {
+        const tray = get().tray.filter(e => e.matchId !== matchId);
         set({ tray });
         if (get().status === 'playing' && get().remaining === 0 && tray.length === 0) {
             set({ status: 'won' });
+        } else if (activeCount(tray) >= get().trayCapacity && tray.every(e => e.landed)) {
+            get().lose('tray');
         }
     },
 

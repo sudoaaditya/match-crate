@@ -9,6 +9,7 @@
 .hud-top {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 8px;
     padding: 12px 16px;
 }
@@ -24,6 +25,42 @@
 
 .hud-timer.is-low {
     color: #e63946;
+}
+
+.hud-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.hud-group:last-child {
+    justify-content: flex-end;
+}
+
+.hud-tag.is-hard {
+    background: #f4a261;
+    color: #14171c;
+}
+
+.hud-tag.is-superHard {
+    background: #e63946;
+    color: #fff;
+}
+
+.hud-mode {
+    opacity: 0.75;
+}
+
+.hud-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.hud-button.is-secondary {
+    background: #555f6f;
+    color: #ecedef;
 }
 
 .hud-overlay {
