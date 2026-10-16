@@ -1,10 +1,12 @@
-import * as THREE from "three";
 import { palette, colorNames } from "./colors.js";
 
 /*
  * Every matchable item type. Looks are fixed per type (never random) so three of a
  * type always match visually. Shapes are procedural (zero download); models come
  * from /assets/models and are prepared once by prepareModel().
+ *
+ * Pure data, no three.js: the menus import this (via levels.js). The geometries and
+ * materials built from it live in world/itemResources.js.
  *
  * shape items : { shape, color, tex?, collider }
  * model items : { model, recolor?, collider }
@@ -14,8 +16,8 @@ import { palette, colorNames } from "./colors.js";
  */
 
 // Black/white pattern masks (256px greyscale WebP). Not used as colour: the striped
-// material paints them in two tones of the item's own colour (see stripedMaterial).
-const TEXTURES = Array.from({ length: 9 }, (_, i) => `/assets/textures/bw_stripes_${i + 1}.webp`);
+// material paints them in two tones of the item's own colour (itemResources.stripedMaterial).
+export const TEXTURES = Array.from({ length: 9 }, (_, i) => `/assets/textures/bw_stripes_${i + 1}.webp`);
 
 const MODELS = {
     Ambulance: '/assets/models/Ambulance_Car.glb',
@@ -29,18 +31,18 @@ const MODELS = {
     Truck: '/assets/models/Truck.glb',
 };
 
-// Geometry factories, all sized to roughly 0.8–0.9 units across.
+// Shape kinds (geometry factories are in world/itemResources.js).
 // `stripes`: the UVs wrap well enough to also offer a striped variant of the shape.
 const SHAPES = {
-    sphere: { make: () => new THREE.SphereGeometry(0.42, 16, 12), collider: 'ball', stripes: true },
-    cube: { make: () => new THREE.BoxGeometry(0.75, 0.75, 0.75), collider: 'cuboid', stripes: true },
-    slab: { make: () => new THREE.BoxGeometry(0.9, 0.25, 0.6), collider: 'cuboid', stripes: false },
-    cylinder: { make: () => new THREE.CylinderGeometry(0.32, 0.32, 0.8, 16), collider: 'hull', stripes: true },
-    cone: { make: () => new THREE.ConeGeometry(0.4, 0.85, 16), collider: 'hull', stripes: false },
-    torus: { make: () => new THREE.TorusGeometry(0.3, 0.13, 8, 20), collider: 'hull', stripes: true },
-    capsule: { make: () => new THREE.CapsuleGeometry(0.22, 0.45, 4, 12), collider: 'hull', stripes: true },
-    octahedron: { make: () => new THREE.OctahedronGeometry(0.45), collider: 'hull', stripes: false },
-    dodecahedron: { make: () => new THREE.DodecahedronGeometry(0.42), collider: 'hull', stripes: false },
+    sphere: { collider: 'ball', stripes: true },
+    cube: { collider: 'cuboid', stripes: true },
+    slab: { collider: 'cuboid', stripes: false },
+    cylinder: { collider: 'hull', stripes: true },
+    cone: { collider: 'hull', stripes: false },
+    torus: { collider: 'hull', stripes: true },
+    capsule: { collider: 'hull', stripes: true },
+    octahedron: { collider: 'hull', stripes: false },
+    dodecahedron: { collider: 'hull', stripes: false },
 };
 
 // Catalog id -> key in MODELS.
@@ -88,23 +90,6 @@ for (const [id, model] of Object.entries(MODEL_ITEMS)) {
     }
 }
 
-/* ---------- shared resource cache (one geometry/material per item type) ---------- */
-
-const geometries = new Map();
-const materials = new Map();
-const textures = new Map();
-const textureLoader = new THREE.TextureLoader();
-
-const getTexture = (idx) => {
-    if (!textures.has(idx)) {
-        const tex = textureLoader.load(TEXTURES[idx]);
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.anisotropy = 4;     // keeps fine patterns crisp on surfaces seen at an angle
-        textures.set(idx, tex);
-    }
-    return textures.get(idx);
-}
-
 const getItem = (typeId) => {
     const item = CATALOG[typeId];
     if (!item) throw new Error(`Unknown item type "${typeId}"`);
@@ -114,87 +99,6 @@ const getItem = (typeId) => {
 const isModelItem = (typeId) => !!getItem(typeId).model;
 
 const getModelUrl = (typeId) => MODELS[getItem(typeId).model];
-
-// Shapes are created lazily; model geometries are registered by ModelObject once loaded.
-const getItemGeometry = (typeId) => {
-    if (!geometries.has(typeId)) {
-        const item = getItem(typeId);
-        if (item.model) throw new Error(`Model geometry for "${typeId}" not prepared yet`);
-        const geo = SHAPES[item.shape].make();
-        geo.computeBoundingSphere();
-        geometries.set(typeId, geo);
-    }
-    return geometries.get(typeId);
-}
-
-const hasItemGeometry = (typeId) => geometries.has(typeId);
-const setItemGeometry = (typeId, geometry) => geometries.set(typeId, geometry);
-
-/*
- * Striped items: the pattern mask picks between the item's colour and a contrasting tone
- * of the same hue (darker for light colours, lighter for dark ones). Multiplying the
- * colour by the black/white mask instead turned half of every pattern black, so
- * striped items looked dirty and the pattern vanished on dark colours.
- */
-const WHITE = new THREE.Color(1, 1, 1);
-// Mixed in sRGB (perceptual) space: a linear-space mix toward white washes colours out.
-const stripeTone = (hex) => {
-    const srgb = new THREE.Color(hex).convertLinearToSRGB();
-    const luma = 0.2126 * srgb.r + 0.7152 * srgb.g + 0.0722 * srgb.b;
-    const tone = luma > 0.55 ? srgb.multiplyScalar(0.55) : srgb.lerp(WHITE, 0.3);
-    return tone.convertSRGBToLinear();
-}
-
-const stripedMaterial = (hex, texIdx) => {
-    const mat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.5, map: getTexture(texIdx) });
-    const stripeColor = stripeTone(hex);
-    mat.onBeforeCompile = (shader) => {
-        shader.uniforms.stripeColor = { value: stripeColor };
-        shader.fragmentShader = shader.fragmentShader
-            .replace('#include <common>', '#include <common>\nuniform vec3 stripeColor;')
-            .replace('#include <map_fragment>', `#ifdef USE_MAP
-    float stripeMask = smoothstep(0.35, 0.65, texture2D(map, vMapUv).r);
-    diffuseColor.rgb = mix(stripeColor, diffuseColor.rgb, stripeMask);
-#endif`);
-    };
-    // Every striped material shares one compiled program; only the uniform differs.
-    mat.customProgramCacheKey = () => 'striped-two-tone';
-    return mat;
-}
-
-const getItemMaterial = (typeId) => {
-    if (!materials.has(typeId)) {
-        const item = getItem(typeId);
-        const mat = item.model
-            ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })
-            : item.tex !== undefined
-                ? stripedMaterial(palette[item.color], item.tex)
-                : new THREE.MeshStandardMaterial({ color: palette[item.color], roughness: 0.5 });
-        materials.set(typeId, mat);
-    }
-    return materials.get(typeId);
-}
-
-// Free geometries/materials of types the current level doesn't use (textures are few; kept).
-const releaseUnusedItems = (keepIds) => {
-    const keep = new Set(keepIds);
-    for (const cache of [geometries, materials]) {
-        cache.forEach((res, id) => {
-            if (keep.has(id)) return;
-            res.dispose();
-            cache.delete(id);
-        });
-    }
-}
-
-const disposeItemResources = () => {
-    geometries.forEach(g => g.dispose());
-    materials.forEach(m => m.dispose());
-    textures.forEach(t => t.dispose());
-    geometries.clear();
-    materials.clear();
-    textures.clear();
-}
 
 export {
     CATALOG,
@@ -208,10 +112,4 @@ export {
     getItem,
     isModelItem,
     getModelUrl,
-    getItemGeometry,
-    hasItemGeometry,
-    setItemGeometry,
-    getItemMaterial,
-    releaseUnusedItems,
-    disposeItemResources
 }

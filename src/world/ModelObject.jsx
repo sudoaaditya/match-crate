@@ -1,7 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { useMemo } from "react";
-import { getItem, getItemGeometry, getItemMaterial, getModelUrl, hasItemGeometry, setItemGeometry } from "../utils/catalog";
-import { prepareModel } from "../utils/helpers";
+import { getItem, getModelUrl } from "../utils/catalog";
+import { getItemGeometry, getItemMaterial, hasItemGeometry, prepareModel, setItemGeometry } from "./itemResources";
 import { GameObject } from "./GameObject";
 
 /**

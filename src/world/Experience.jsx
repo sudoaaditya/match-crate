@@ -4,15 +4,17 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { Physics } from "@react-three/rapier";
 
 import { shades } from '../utils/colors';
-import { disposeItemResources, releaseUnusedItems, getItem, getItemGeometry, getItemMaterial, getModelUrl, isModelItem } from "../utils/catalog";
+import { getItem, getModelUrl, isModelItem } from "../utils/catalog";
+import { disposeItemResources, getItemGeometry, getItemMaterial, releaseUnusedItems } from "./itemResources";
 import { boxShape, getDevicePixelRatio, isDebug } from "../utils/helpers";
 import { MATCH_SIZE, useGameStore } from "../utils/store";
 
 import { CameraRig } from "./CameraRig";
 import { GameContainer } from "./GameContainer";
-import { GameObject } from "./GameObject";
+import { GameObject, PileSettler } from "./GameObject";
 import { ModelObject } from "./ModelObject";
 import { Tray } from "./Tray";
+import { HoverOutline } from "./HoverOutline";
 
 const DEBUG = isDebug();
 
@@ -86,6 +88,7 @@ export default function Experience() {
             <Suspense fallback={null}>
                 <Physics key={runId} debug={DEBUG} paused={status !== 'playing'}>
                     <GameContainer box={box} />
+                    <PileSettler />
                     {groups.map(g => isModelItem(g.typeId)
                         ? <ModelObject key={g.typeId} {...g} />
                         : <GameObject
@@ -96,6 +99,7 @@ export default function Experience() {
                         />
                     )}
                 </Physics>
+                <HoverOutline />
                 <Tray />
                 <GameClock />
             </Suspense>

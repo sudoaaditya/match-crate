@@ -1,4 +1,5 @@
 import { InstancedRigidBodies } from "@react-three/rapier"
+import { useFrame } from "@react-three/fiber";
 import { memo, useLayoutEffect, useMemo, useRef } from "react"
 import * as THREE from "three";
 import { createRng, randRange } from "../utils/helpers";
@@ -10,6 +11,48 @@ import { FLOOR_Y } from "./GameContainer";
 const allBodies = new Set();
 export const wakeAllBodies = () => allBodies.forEach(ref => ref.current.forEach(body => body?.wakeUp()));
 
+const forEachActiveBody = (fn) => allBodies.forEach(ref => ref.current.forEach(body => {
+    if (body && body.isEnabled()) fn(body);
+}));
+
+const SETTLE_CHECK = 0.25;      // s between checks
+const SETTLE_AFTER = 1;         // s the pile must stay calm
+const CALM_LINEAR = 0.3;        // units/s
+const CALM_ANGULAR = 1;         // rad/s
+
+/*
+ * Rapier only sleeps a group of touching bodies once *all* of them are nearly still. A deep
+ * pile keeps a little solver jitter forever (measured: ~0.1 u/s, ~0.5 rad/s on level 100),
+ * so it never slept and physics cost full price every frame (~7 ms/frame on 120 items).
+ * Once the whole pile has been calm for a second, put it to sleep ourselves; every pick,
+ * undo, magnet and shuffle wakes it again via wakeAllBodies().
+ */
+export const PileSettler = () => {
+    const state = useRef({ since: 0, calmFor: 0 });
+    useFrame((_, delta) => {
+        const s = state.current;
+        s.since += delta;
+        if (s.since < SETTLE_CHECK) return;
+        const step = s.since;
+        s.since = 0;
+
+        let awake = 0, calm = true;
+        forEachActiveBody(body => {
+            if (body.isSleeping()) return;
+            awake++;
+            const v = body.linvel(), w = body.angvel();
+            if (Math.hypot(v.x, v.y, v.z) > CALM_LINEAR || Math.hypot(w.x, w.y, w.z) > CALM_ANGULAR) calm = false;
+        });
+
+        s.calmFor = awake && calm ? s.calmFor + step : 0;
+        if (s.calmFor >= SETTLE_AFTER) {
+            forEachActiveBody(body => body.sleep());
+            s.calmFor = 0;
+        }
+    });
+    return null;
+}
+
 // Picked instances are disabled and parked far below the box; the instanced matrix follows them there.
 const HIDDEN_POS = { x: 0, y: -500, z: 0 };
 
@@ -17,7 +60,15 @@ const HIDDEN_POS = { x: 0, y: -500, z: 0 };
 // A fixed sphere around the whole box is cheaper and always correct.
 const PILE_BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 2, 0), 16);
 
-const setCursor = (value) => () => { document.body.style.cursor = value; };
+// The item under the pointer, read every frame by <HoverOutline>. A plain object rather
+// than React state, so pointer movement never re-renders anything.
+export const hovered = { mesh: null, instanceId: -1 };
+
+const setHover = (mesh, instanceId) => {
+    hovered.mesh = mesh;
+    hovered.instanceId = instanceId;
+    document.body.style.cursor = mesh ? 'pointer' : 'auto';
+}
 
 const rand = (min, max) => min + Math.random() * (max - min);
 
@@ -66,6 +117,7 @@ export const GameObject = memo(({
         if (!accepted) return false;
 
         picked.current.add(id);
+        if (hovered.mesh === meshRef.current && hovered.instanceId === id) setHover(null, -1);
         body.setEnabled(false);
         body.setTranslation(HIDDEN_POS, false);
         wakeAllBodies();
@@ -116,6 +168,7 @@ export const GameObject = memo(({
         return () => {
             allBodies.delete(bodies);
             unregister();
+            if (hovered.mesh === meshRef.current) setHover(null, -1);
         };
     }, [api]);
 
@@ -127,22 +180,41 @@ export const GameObject = memo(({
         pickInstance(id);
     }
 
+    // Only the front-most item under the pointer is hovered (stopPropagation).
+    const handleHover = (e) => {
+        const id = e.instanceId;
+        if (id === undefined || picked.current.has(id)) return;
+        e.stopPropagation();
+        if (hovered.mesh !== meshRef.current || hovered.instanceId !== id) setHover(meshRef.current, id);
+    }
+
+    const handleLeave = () => {
+        if (hovered.mesh === meshRef.current) setHover(null, -1);
+    }
+
+    // Touch has no hover: don't leave an outline behind when the finger lifts.
+    const handleUp = (e) => {
+        if (e.pointerType !== 'mouse') handleLeave();
+    }
+
     return (
         <InstancedRigidBodies
             ref={bodies}
             colliders={collider}
             instances={instances}
-            friction={0.4}
+            friction={0.6}
             restitution={0.05}
-            linearDamping={0.2}
-            angularDamping={0.6}
+            linearDamping={0.3}
+            angularDamping={1.2}
         >
             <instancedMesh
                 ref={meshRef}
                 args={[geometry, material, count]}
                 onClick={handlePick}
-                onPointerOver={setCursor('pointer')}
-                onPointerOut={setCursor('auto')}
+                onPointerOver={handleHover}
+                onPointerMove={handleHover}
+                onPointerOut={handleLeave}
+                onPointerUp={handleUp}
             />
         </InstancedRigidBodies>
     )

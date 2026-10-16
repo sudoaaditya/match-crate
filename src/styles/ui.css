@@ -92,6 +92,13 @@ button {
     font-size: 20px;
 }
 
+.screen-loading {
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-dim);
+    font-weight: 600;
+}
+
 /* ---------- home ---------- */
 
 .home {

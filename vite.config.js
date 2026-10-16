@@ -39,6 +39,18 @@ export default defineConfig({
   {
       outDir: '../dist', // Output in the dist/ folder
       emptyOutDir: true, // Empty the folder first
-      sourcemap: true // Add sourcemap
+      sourcemap: true, // Add sourcemap
+      // The physics engine embeds its WASM (~2 MB raw); it can't be split smaller.
+      chunkSizeWarningLimit: 2200,
+      rollupOptions: {
+          output: {
+              // Big, rarely-changing libraries in their own chunks: they download in
+              // parallel and stay cached across game updates.
+              manualChunks(id) {
+                  if (id.includes('@dimforge')) return 'physics';
+                  if (id.includes('node_modules/three/')) return 'three';
+              },
+          },
+      },
   },
 })

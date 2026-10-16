@@ -1,11 +1,19 @@
-import { useEffect } from "react";
-import Experience from "../world/Experience";
-import Hud from "./Hud";
+import { lazy, Suspense, useEffect } from "react";
 import HomeScreen from "./HomeScreen";
 import ModeSelect from "./ModeSelect";
 import LevelMap from "./LevelMap";
 import { MODES } from "../utils/levels";
 import { useGameStore } from "../utils/store";
+
+// The 3D game (three.js + physics, ~1 MB gzipped) is its own chunk: the menus show
+// immediately and the game downloads in the background while the player picks a level.
+const loadGameScreen = () => import("./GameScreen");
+const GameScreen = lazy(loadGameScreen);
+
+const prefetchGame = () => {
+  const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1200));
+  idle(() => loadGameScreen());
+};
 
 // Dev shortcut: ?level=37&mode=hard jumps straight into a level (ignores locks).
 const readUrlLevel = () => {
@@ -16,6 +24,8 @@ const readUrlLevel = () => {
   return { id, mode };
 };
 
+const Loading = () => <div className="screen screen-loading">Loading…</div>;
+
 const App = () => {
   const screen = useGameStore(s => s.screen);
   const playLevel = useGameStore(s => s.playLevel);
@@ -23,12 +33,13 @@ const App = () => {
   useEffect(() => {
     const dev = readUrlLevel();
     if (dev) playLevel(dev.id, dev.mode);
+    else prefetchGame();
   }, []);
 
-  // The 3D canvas (and the physics engine) only exists on the game screen; menus are plain HTML.
+  // The canvas (and the physics engine) only exists on the game screen; menus are plain HTML.
   return (
     <>
-      {screen === 'game' && <><Experience /><Hud /></>}
+      {screen === 'game' && <Suspense fallback={<Loading />}><GameScreen /></Suspense>}
       {screen === 'home' && <HomeScreen />}
       {screen === 'modes' && <ModeSelect />}
       {screen === 'map' && <LevelMap />}
