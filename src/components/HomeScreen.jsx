@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { levelTag, loadLevels } from "../utils/levels";
 import { BOOSTERS, selectBoosters, useGameStore } from "../utils/store";
 import { BoltIcon, FreezeIcon, MagnetIcon, PlayIcon, ShuffleIcon, SkullIcon, UndoIcon } from "./Icons";
+import StreakMeter from "./StreakMeter";
+import Perks from "./Perks";
 
 const BOOSTER_ICONS = { undo: UndoIcon, magnet: MagnetIcon, shuffle: ShuffleIcon, freeze: FreezeIcon };
 
@@ -22,6 +24,7 @@ const TAG_INFO = {
 // Home tab: the next level to play, front and centre.
 const HomeScreen = () => {
     const unlocked = useGameStore(s => s.progress.unlocked);
+    const streak = useGameStore(s => s.progress.streak);
     const boosters = useGameStore(selectBoosters);
     const playLevel = useGameStore(s => s.playLevel);
     const setScreen = useGameStore(s => s.setScreen);
@@ -58,6 +61,10 @@ const HomeScreen = () => {
             {nextSpecial && (
                 <p className="home-hint"><SkullIcon size={14} /> Super hard at level {nextSpecial}</p>
             )}
+
+            <Perks />
+
+            <StreakMeter streak={streak} />
 
             <button className="booster-strip" onClick={() => setScreen('shop')} aria-label="Your boosters. Open shop">
                 {BOOSTERS.map(b => {

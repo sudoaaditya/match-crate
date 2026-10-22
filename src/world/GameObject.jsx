@@ -58,7 +58,7 @@ const HIDDEN_POS = { x: 0, y: -500, z: 0 };
 
 // Instances move every frame, so a computed bounding sphere goes stale and breaks culling/raycasting.
 // A fixed sphere around the whole box is cheaper and always correct.
-const PILE_BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 2, 0), 16);
+const PILE_BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 2, 0), 18);
 
 // The item under the pointer, read every frame by <HoverOutline>. A plain object rather
 // than React state, so pointer movement never re-renders anything.

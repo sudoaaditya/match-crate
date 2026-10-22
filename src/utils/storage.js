@@ -1,11 +1,11 @@
-import { startingBoosters } from "./economy.js";
+import { STAR_CHEST, startingBoosters } from "./economy.js";
 
 /*
  * Player progress, saved in localStorage. Every access is guarded: storage can be
  * unavailable (private mode, blocked site data) and the game must still run.
  *
  * Shape (version 2, one difficulty):
- *   { version: 2, settings: { sound }, unlocked, stars: { "1": 3, ... }, coins, boosters: { undo, ... } }
+ *   { version: 2, settings: { sound }, unlocked, stars: { "1": 3, ... }, coins, boosters: { undo, ... }, streak, daily, chests }
  *
  * Version 1 saves kept separate progress per mode (easy/medium/hard). They migrate by
  * keeping the mode that got furthest, with its stars, coins and boosters.
@@ -21,6 +21,9 @@ const emptyProgress = () => ({
     stars: {},
     coins: 0,
     boosters: startingBoosters(),
+    streak: 0,              // consecutive wins on new levels (see economy.STREAK_STAGES)
+    daily: { day: 0, last: null },  // last daily gift claimed (see economy.dailyStatus)
+    chests: 0,              // star chests opened
 });
 
 const withDefaults = (saved) => {
@@ -30,6 +33,10 @@ const withDefaults = (saved) => {
         unlocked: saved.unlocked ?? base.unlocked,
         stars: saved.stars ?? base.stars,
         coins: saved.coins ?? base.coins,
+        streak: saved.streak ?? base.streak,
+        daily: { ...base.daily, ...saved.daily },
+        // Saves from before star chests start counting from their current stars (no backlog of chests).
+        chests: saved.chests ?? Math.floor(totalStars(saved) / STAR_CHEST.stars),
         boosters: { ...base.boosters, ...saved.boosters },
         settings: { ...base.settings, ...saved.settings },
     };

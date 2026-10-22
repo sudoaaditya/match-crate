@@ -3,6 +3,26 @@ const getDevicePixelRatio = () => {
     return Math.min(isMobile ? 1.0 : 1.5, window.devicePixelRatio);
 }
 
+/*
+ * Render quality tiers (pixel ratios), best first. The game steps down when frames drop
+ * and back up when there's headroom; the last tier is remembered so a slow phone starts low.
+ */
+const QUALITY_KEY = 'match-crate:quality';
+const MIN_DPR = 0.6;
+
+const qualityTiers = () => {
+    const best = getDevicePixelRatio();
+    return [...new Set([best, Math.max(MIN_DPR, +(best * 0.8).toFixed(2)), MIN_DPR])];
+}
+
+const loadQualityTier = () => {
+    try { return parseInt(localStorage.getItem(QUALITY_KEY), 10) || 0; } catch { return 0; }
+}
+
+const saveQualityTier = (tier) => {
+    try { localStorage.setItem(QUALITY_KEY, String(tier)); } catch { /* not remembered */ }
+}
+
 // Deterministic RNG (mulberry32) so a level's pile is identical on every play.
 const createRng = (seed = 1) => {
     let a = seed >>> 0;
@@ -60,6 +80,9 @@ const boxShape = (half, width, height, capacity) => {
 
 export {
     getDevicePixelRatio,
+    qualityTiers,
+    loadQualityTier,
+    saveQualityTier,
     createRng,
     randRange,
     isDebug,

@@ -7,6 +7,8 @@ const PauseMenu = () => {
     const level = useGameStore(s => s.level);
     const resume = useGameStore(s => s.resume);
     const retry = useGameStore(s => s.retry);
+    const streak = useGameStore(s => s.progress.streak);
+    const frontier = useGameStore(s => s.frontier);
 
     return (
         <div className="hud-overlay">
@@ -18,6 +20,9 @@ const PauseMenu = () => {
                     <button className="btn btn-primary" onClick={resume}><PlayIcon size={18} /> Resume</button>
                     <button className="btn btn-secondary" onClick={retry}>Restart level</button>
                 </div>
+                {frontier && streak > 0 && (
+                    <p className="streak-warning">Restarting or leaving ends your win streak of {streak}.</p>
+                )}
                 <ExitButtons />
             </div>
         </div>

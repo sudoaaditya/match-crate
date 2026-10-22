@@ -18,7 +18,10 @@ export const TopBar = () => {
     const setScreen = useGameStore(s => s.setScreen);
     return (
         <header className="top-bar">
-            <span className="brand">Three <b>Match</b></span>
+            <span className="brand">
+                <span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span>
+                <span>Match <b>Crate</b></span>
+            </span>
             <button className="coin-pill" onClick={() => setScreen('shop')} aria-label={`${coins} coins. Open shop`}>
                 <CoinIcon size={22} />
                 <span>{coins}</span>

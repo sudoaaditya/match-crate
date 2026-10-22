@@ -1,12 +1,12 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei"
+import { OrbitControls, PerformanceMonitor, useGLTF } from "@react-three/drei"
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Physics } from "@react-three/rapier";
 
 import { shades } from '../utils/colors';
 import { getItem, getModelUrl, isModelItem } from "../utils/catalog";
 import { disposeItemResources, getItemGeometry, getItemMaterial, releaseUnusedItems } from "./itemResources";
-import { boxShape, getDevicePixelRatio, isDebug } from "../utils/helpers";
+import { boxShape, isDebug, loadQualityTier, qualityTiers, saveQualityTier } from "../utils/helpers";
 import { MATCH_SIZE, useGameStore } from "../utils/store";
 
 import { CameraRig } from "./CameraRig";
@@ -27,7 +27,13 @@ const GameClock = () => {
 
 export default function Experience() {
 
-    const [dpr] = useState(getDevicePixelRatio);
+    const [tiers] = useState(qualityTiers);
+    const [tier, setTier] = useState(() => Math.min(loadQualityTier(), tiers.length - 1));
+    const changeTier = (step) => setTier(t => {
+        const next = Math.min(tiers.length - 1, Math.max(0, t + step));
+        saveQualityTier(next);
+        return next;
+    });
     const [frameloop, setFrameloop] = useState('always');
     const level = useGameStore(s => s.level);
     const runId = useGameStore(s => s.runId);
@@ -75,9 +81,11 @@ export default function Experience() {
         <Canvas
             flat
             camera={{ fov: 45, near: 0.1, far: 200 }}
-            dpr={dpr}
+            dpr={tiers[tier]}
             frameloop={frameloop}
         >
+            {/* Drops resolution a step when frames fall behind, raises it again with headroom. */}
+            <PerformanceMonitor flipflops={4} onDecline={() => changeTier(1)} onIncline={() => changeTier(-1)} />
             <color args={[shades[4]]} attach="background" />
             <CameraRig box={box} />
             {DEBUG && <OrbitControls makeDefault />}

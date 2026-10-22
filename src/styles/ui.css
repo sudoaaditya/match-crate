@@ -123,6 +123,14 @@ button {
 
 .brand b { color: var(--accent); }
 
+/* Logo: the four pile shapes in a row (same as the app icon). */
+.brand { display: inline-flex; align-items: center; gap: 8px; }
+.brand-mark { display: inline-flex; gap: 3px; }
+.brand-mark i { width: 10px; height: 10px; border-radius: 50%; background: #4fd1ec; }
+.brand-mark i:nth-child(2) { background: #f0495f; }
+.brand-mark i:nth-child(3) { background: #ffa25f; border-radius: 3px; }
+.brand-mark i:nth-child(4) { background: #f472b6; }
+
 .coin-pill {
     display: inline-flex;
     align-items: center;
@@ -311,6 +319,30 @@ button {
     margin-top: 10px;
     border-radius: 50%;
     background: radial-gradient(closest-side, rgba(255, 209, 102, 0.35), rgba(255, 209, 102, 0.05) 70%, transparent);
+}
+
+/* Short phones (e.g. 375x667): smaller crate and tighter spacing so Play stays above the tabs. */
+@media (max-height: 760px) {
+    .home { gap: 10px; padding-top: 4px; }
+    .home-stage { padding-top: 50px; }
+    .crate-pile { scale: 0.75; transform-origin: top center; }
+    .crate { width: min(150px, 42vw); }
+    .crate-number { font-size: 60px; }
+    .crate-label { font-size: 17px; }
+    .crate-base { height: 14px; margin-top: 4px; }
+    .streak { padding: 8px 14px; }
+    .btn-play { padding: 11px 0; font-size: 26px; }
+}
+@media (max-height: 700px) {
+    .home { gap: 8px; }
+    .home-stage { padding-top: 46px; }
+    .crate { width: min(124px, 36vw); }
+    .crate-number { font-size: 50px; }
+    .crate-label { font-size: 15px; }
+    .crate-base { display: none; }
+    .home-hint { margin-top: 8px; }
+    .perk { padding: 8px 10px; }
+    .streak-body { display: none; }
 }
 
 .home-hint {
@@ -945,6 +977,113 @@ button {
 
 .card-actions.is-stacked { flex-direction: column; align-items: stretch; }
 
+/* ---------- win streak ---------- */
+
+.streak {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 16px;
+    background: var(--panel);
+}
+
+.streak.is-compact { background: var(--bg-deep); padding: 8px 14px; margin-top: 10px; }
+
+.streak-head { display: flex; align-items: center; gap: 10px; }
+
+.streak-title {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ff9f1c;
+}
+
+.streak-pips { display: flex; gap: 5px; }
+
+.pip {
+    width: 22px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--bg-deep);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.streak.is-compact .pip:not(.is-on) { background: var(--panel-hi); }
+.pip.is-on { background: linear-gradient(90deg, #ff9f1c, #ffd166); box-shadow: 0 0 8px rgba(255, 159, 28, 0.5); }
+.pip.is-new { animation: pip-in 0.5s 0.9s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+
+@keyframes pip-in {
+    from { transform: scale(0); opacity: 0; }
+}
+
+.streak-count { font-weight: 900; color: #ffd166; font-size: 14px; }
+
+.streak-body {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.streak-gifts { display: inline-flex; gap: 4px; }
+
+.gift {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 6px;
+    border-radius: 8px;
+    background: var(--bg-deep);
+}
+
+.gift b { color: var(--ink); font-size: 11px; }
+.gift.is-undo { color: #ffd166; }
+.gift.is-magnet { color: #ff70a6; }
+.gift.is-shuffle { color: #8ac926; }
+.gift.is-freeze { color: #4cc9f0; }
+
+.streak-warning {
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(255, 159, 28, 0.12);
+    color: #ffb54d;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* Win streak head start, shown for the first seconds of a new level. */
+.streak-banner {
+    position: absolute;
+    top: 64px;
+    left: 50%;
+    translate: -50% 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px 14px;
+    border-radius: 999px;
+    background: var(--panel);
+    box-shadow: 0 0 0 2px rgba(255, 159, 28, 0.6), 0 8px 18px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+    animation: banner-in 0.35s ease-out;
+}
+.streak-banner-title { font-size: 13px; font-weight: 800; color: #ffb54d; }
+@keyframes banner-in {
+    from { opacity: 0; translate: -50% -12px; }
+}
+
+/* Continue price on the loss card. */
+.btn-price { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 800; }
+.btn-continue:disabled { opacity: 0.55; filter: grayscale(0.4); }
+
 /* Home / Level map row under the main actions, split by a hairline. */
 .card-exits {
     display: flex;
@@ -989,6 +1128,146 @@ button {
     from { transform: scale(0.85); opacity: 0; }
 }
 
+/* ---------- Daily gift + star chest ---------- */
+
+.perks { display: flex; gap: 8px; width: min(360px, 100%); }
+
+.perk {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--panel);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+.perk.is-daily > svg { color: #f472b6; flex: none; }
+.perk.is-chest > svg { color: #ffa25f; flex: none; }
+.perk.is-ready { box-shadow: 0 0 0 2px var(--accent); }
+.perk.is-ready > svg { animation: wiggle 1.6s ease-in-out infinite; }
+.perk-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; font-size: 12px; color: var(--ink-dim); font-weight: 700; }
+.perk-text b { color: var(--ink); font-size: 14px; }
+.perk.is-ready .perk-text > span { color: var(--accent); }
+
+@keyframes wiggle {
+    0%, 70%, 100% { rotate: 0deg; }
+    76% { rotate: -12deg; }
+    84% { rotate: 10deg; }
+    92% { rotate: -6deg; }
+}
+
+.chest-meter { display: flex; align-items: center; gap: 6px; }
+.chest-bar { flex: 1; min-width: 30px; height: 6px; border-radius: 3px; background: var(--bg-deep); overflow: hidden; }
+.chest-bar > span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ffa25f, #ffd166); }
+.chest-count { display: inline-flex; align-items: center; gap: 2px; color: #ffd166; font-size: 12px; font-variant-numeric: tabular-nums; }
+.sheet .chest-meter { width: 80%; margin: 4px auto 0; }
+
+.sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(6, 7, 9, 0.6);
+    animation: fade 0.25s ease-out;
+}
+.sheet .reward { animation-delay: 0.05s; }
+.sheet .card-actions { margin-top: 14px; }
+
+.daily-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin: 14px 0 10px;
+    padding: 0;
+    list-style: none;
+}
+.daily-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 7px 2px;
+    border-radius: 12px;
+    background: var(--bg-deep);
+    font-size: 12px;
+    font-weight: 800;
+    opacity: 0.75;
+}
+.daily-day.is-big { grid-column: span 2; background: linear-gradient(135deg, #3b2f52, var(--bg-deep)); }
+.daily-day.is-today { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }
+.daily-day.is-done { opacity: 0.45; }
+.daily-day.is-done .daily-label::after { content: " \2713"; color: #5fd35a; }
+.daily-label { color: var(--ink-dim); font-size: 11px; }
+.daily-coins { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); }
+.daily-boosters { display: inline-flex; gap: 3px; }
+.daily-boosters .is-undo { color: #ffd166; }
+.daily-boosters .is-magnet { color: #ff70a6; }
+.daily-boosters .is-shuffle { color: #8ac926; }
+.daily-boosters .is-freeze { color: #4cc9f0; }
+
+.chest-art { display: inline-grid; place-items: center; color: #8a6a4f; margin-bottom: 4px; }
+.chest-art.is-ready { color: #ffa25f; animation: wiggle 1.6s ease-in-out infinite; }
+.chest-art.is-open { color: #ffd166; animation: pop-in 0.4s cubic-bezier(0.2, 1.6, 0.4, 1); filter: drop-shadow(0 0 14px rgba(255, 209, 102, 0.6)); }
+
+/* ---------- Effects: match bursts + win confetti ---------- */
+
+.burst { position: absolute; width: 0; height: 0; pointer-events: none; }
+.burst-ring {
+    position: absolute;
+    left: calc(var(--r) * -1);
+    top: calc(var(--r) * -1);
+    width: calc(var(--r) * 2);
+    height: calc(var(--r) * 2);
+    border-radius: 50%;
+    border: 3px solid var(--c);
+    opacity: 0;
+    animation: burst-ring 0.5s 0.15s ease-out;
+}
+.spark {
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 8px var(--c);
+    opacity: 0;
+    animation: spark 0.6s 0.15s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.spark:nth-child(3n) { background: #fff; }
+@keyframes burst-ring {
+    from { opacity: 0.9; transform: scale(0.3); }
+    to { opacity: 0; transform: scale(1.2); }
+}
+@keyframes spark {
+    from { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
+    to { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--r) * -1.6 * var(--k))) scale(0.3); }
+}
+
+.confetti { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+.confetti > span {
+    position: absolute;
+    top: -16px;
+    width: 9px;
+    height: 14px;
+    border-radius: 2px;
+    animation: confetti-fall linear both;
+}
+.confetti > span.is-round { width: 10px; height: 10px; border-radius: 50%; }
+@keyframes confetti-fall {
+    to { transform: translate(var(--drift), 110vh) rotate(var(--spin)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
+    .confetti, .burst { display: none; }
 }

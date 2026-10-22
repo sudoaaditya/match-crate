@@ -88,3 +88,13 @@ export const CoinIcon = ({ size = 20, ...props }) => (
 export const ArrowDownIcon = (props) => (
     <Svg {...props}><path d="M11 4h2v11.2l4.6-4.6 1.4 1.4-7 7-7-7 1.4-1.4 4.6 4.6z" /></Svg>
 );
+
+// Daily gift: wrapped box with a bow.
+export const GiftIcon = (props) => (
+    <Svg {...props}><path d="M4 11h7v10H5a1 1 0 0 1-1-1zm9 0h7v9a1 1 0 0 1-1 1h-6zM3 7.5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1V10H3zM11 6.5h2V10h-2zM12 6.3C10.6 3.6 8.4 2.6 7.3 3.5c-1.1.9-.4 2.8 2.2 3zm0 0c1.4-2.7 3.6-3.7 4.7-2.8 1.1.9.4 2.8-2.2 3z" /></Svg>
+);
+
+// Star chest: lid, body and clasp.
+export const ChestIcon = (props) => (
+    <Svg {...props}><path d="M5 4h14a2 2 0 0 1 2 2v4H3V6a2 2 0 0 1 2-2zM3 11.5h7.5V13a1.5 1.5 0 0 0 3 0v-1.5H21V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM11.2 9h1.6v4a.8.8 0 0 1-1.6 0z" /></Svg>
+);

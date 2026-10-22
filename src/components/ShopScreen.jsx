@@ -31,7 +31,7 @@ const ShopScreen = () => {
     return (
         <div className="shop">
             <h2 className="tab-title">Shop</h2>
-            <p className="shop-sub">Earn coins with new stars and by clearing hard levels.</p>
+            <p className="shop-sub">Earn coins with new stars, hard levels, daily gifts and star chests.</p>
 
             <button
                 className={`shop-bundle ${flash === 'bundle' ? 'is-bought' : ''}`}

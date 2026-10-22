@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { getLevel, resolveLevel } from "./levels.js";
-import { loadProgress, recordWin, saveProgress } from "./storage.js";
-import { addBoosters, BOOSTER_NAMES, ECONOMY, rescueBoosters, winRewards } from "./economy.js";
+import { loadProgress, recordWin, saveProgress, totalStars } from "./storage.js";
+import { addBoosters, BOOSTER_NAMES, chestReward, chestStatus, continuePrice, DAILY_REWARDS, dailyStatus, dayKey, ECONOMY, rescueBoosters, streakBoosters, winRewards } from "./economy.js";
 import { allGroups, getGroup } from "./pile.js";
 import { playSfx, setSfxEnabled } from "./sfx.js";
 
@@ -15,6 +15,12 @@ export const BOOSTERS = BOOSTER_NAMES;
 // Booster stock (saved; spent across levels, refilled by wins and the shop) and coins.
 export const selectBoosters = (s) => s.progress.boosters ?? {};
 export const selectCoins = (s) => s.progress.coins ?? 0;
+// Coins the next continue costs in this try.
+export const selectContinuePrice = (s) => continuePrice(s.continues);
+
+// Win streak head start: magnets fire once the pile has dropped, a little apart.
+const GIFT_MAGNET_AT = 1.4;     // seconds of play
+const GIFT_MAGNET_GAP = 0.8;
 
 let uid = 0;
 let timers = [];
@@ -50,10 +56,10 @@ setSfxEnabled(initialProgress.settings.sound);
 export const useGameStore = create((set, get) => ({
     screen: 'home',         // home | map | shop (tabbed menus) | game
     progress: initialProgress,
-    result: null,           // last win: { stars, best, unlocked, coins, boosters }
+    result: null,           // last win: { stars, best, unlocked, coins, boosters, streak }
     status: 'idle',         // idle | loading | playing | paused | won | lost | error
     loseReason: null,       // 'time' | 'tray'
-    continued: false,       // the one free continue per attempt has been used
+    continues: 0,           // continues bought this attempt (each costs more)
     level: null,            // resolved level (see levels.js)
     runId: 0,               // bump to remount the physics scene
     timeLeft: 0,
@@ -63,25 +69,37 @@ export const useGameStore = create((set, get) => ({
     total: 0,
     remaining: 0,           // items still in the pile
     tray: [],
+    frontier: false,        // playing the next new level (streak applies), not a replay
+    gift: {},               // this level's win streak head start: { freeze?, magnet? }
+    giftMagnets: 0,         // streak magnets still to fire
+    played: 0,              // seconds the clock has run this attempt (freeze included)
 
     startLevel: (level) => {
         clearTimers();
         const total = level.items.reduce((sum, [, triplets]) => sum + triplets * MATCH_SIZE, 0);
         get()._rescueBoosters();
+        const { progress } = get();
+        const frontier = level.id >= progress.unlocked;
+        const gift = frontier ? streakBoosters(progress.streak) : {};
         set(s => ({
             status: 'playing',
             loseReason: null,
-            continued: false,
+            continues: 0,
             result: null,
             level,
             runId: s.runId + 1,
             timeLeft: level.time,
             timeTotal: level.time,
-            frozen: 0,
+            // The clock only ticks once the scene has loaded, so the freeze starts with play.
+            frozen: gift.freeze ?? 0,
             trayCapacity: level.tray ?? 7,
             total,
             remaining: total,
             tray: [],
+            frontier,
+            gift,
+            giftMagnets: gift.magnet ?? 0,
+            played: 0,
         }));
     },
 
@@ -108,6 +126,7 @@ export const useGameStore = create((set, get) => ({
 
     // Leave a level (from pause or the result card) to a menu tab: 'home' or 'map'.
     quitTo: (screen = 'map') => {
+        get()._giveUp();
         clearTimers();
         set({ screen, status: 'idle', level: null, tray: [] });
     },
@@ -117,7 +136,18 @@ export const useGameStore = create((set, get) => ({
 
     retry: () => {
         const { level, startLevel } = get();
-        if (level) startLevel(level);
+        if (!level) return;
+        get()._giveUp();
+        startLevel(level);
+    },
+
+    // Leaving a new level without winning it (retry, restart, quit) ends the win streak.
+    _giveUp: () => {
+        const { frontier, status, progress } = get();
+        if (!frontier || status === 'won' || !progress.streak) return;
+        const next = { ...progress, streak: 0 };
+        saveProgress(next);
+        set({ progress: next });
     },
 
     toggleSound: () => {
@@ -207,24 +237,32 @@ export const useGameStore = create((set, get) => ({
     },
 
     _win: () => {
-        const { level, timeLeft, timeTotal, progress } = get();
+        const { level, timeLeft, timeTotal, progress, frontier } = get();
         const stars = starsFor(timeLeft, timeTotal);
         const previous = progress.stars[level.id] ?? 0;
         const rewards = winRewards({ tag: level.tag ?? 'normal', stars, previousStars: previous });
         const won = recordWin(progress, level.id, stars);
-        const next = { ...won, coins: won.coins + rewards.coins, boosters: addBoosters(won.boosters, rewards.boosters) };
+        const streak = frontier ? progress.streak + 1 : progress.streak;
+        const next = { ...won, coins: won.coins + rewards.coins, boosters: addBoosters(won.boosters, rewards.boosters), streak };
         saveProgress(next);
         set({
             status: 'won',
             progress: next,
-            result: { stars, best: stars > previous, unlocked: next.unlocked, ...rewards },
+            result: { stars, best: stars > previous, unlocked: next.unlocked, ...rewards, streak: { from: progress.streak, to: streak } },
         });
         playSfx('win');
     },
 
     tick: (dt) => {
-        const { status, timeLeft, frozen } = get();
+        const { status, timeLeft, frozen, played, giftMagnets, gift } = get();
         if (status !== 'playing') return;
+        set({ played: played + dt });
+        // Streak magnets, one at a time; a magnet with nothing to pull is skipped.
+        const firedMagnets = (gift.magnet ?? 0) - giftMagnets;
+        if (giftMagnets > 0 && played + dt >= GIFT_MAGNET_AT + firedMagnets * GIFT_MAGNET_GAP) {
+            set({ giftMagnets: giftMagnets - 1 });
+            if (get()._magnet() !== false) playSfx('magnet');
+        }
         if (frozen > 0) {
             set({ frozen: Math.max(0, frozen - dt) });
             return;
@@ -243,10 +281,16 @@ export const useGameStore = create((set, get) => ({
         playSfx('lose');
     },
 
-    // One free second chance per attempt: +30s, or three tray items back onto the pile.
+    // Bought with coins: +30s, or three tray items back onto the pile. Returns whether it went through.
     continueGame: () => {
-        const { status, loseReason, continued } = get();
-        if (status !== 'lost' || continued) return;
+        const { status, loseReason, continues } = get();
+        const price = continuePrice(continues);
+        if (status !== 'lost') return false;
+        if (selectCoins(get()) < price) {
+            playSfx('refused');
+            return false;
+        }
+        get()._changeStock({}, -price);
         if (loseReason === 'time') {
             set({ timeLeft: get().timeLeft + CONTINUE_SECONDS });
         } else {
@@ -255,18 +299,19 @@ export const useGameStore = create((set, get) => ({
                 if (entry) get()._returnToPile(entry);
             }
         }
-        set({ status: 'playing', loseReason: null, continued: true });
+        set({ status: 'playing', loseReason: null, continues: continues + 1 });
         playSfx('undo');
         // The last triplet may have finished merging after the loss.
         if (get().remaining === 0 && get().tray.length === 0) get()._win();
+        return true;
     },
 
     /* ---------- economy ---------- */
 
-    // Add (or with negatives, spend) boosters/coins and save.
-    _changeStock: (boosters = {}, coins = 0) => {
+    // Add (or with negatives, spend) boosters/coins and save, along with any other `changes` to progress.
+    _changeStock: (boosters = {}, coins = 0, changes = {}) => {
         const { progress } = get();
-        const next = { ...progress, coins: progress.coins + coins, boosters: addBoosters(progress.boosters, boosters) };
+        const next = { ...progress, ...changes, coins: progress.coins + coins, boosters: addBoosters(progress.boosters, boosters) };
         saveProgress(next);
         set({ progress: next });
     },
@@ -278,6 +323,27 @@ export const useGameStore = create((set, get) => ({
         const next = { ...get().progress, boosters: rescued };
         saveProgress(next);
         set({ progress: next });
+    },
+
+    // Daily gift. Returns the reward ({ coins, boosters? }) or null if already claimed today.
+    claimDaily: (now = new Date()) => {
+        const { progress } = get();
+        const status = dailyStatus(progress.daily, now);
+        if (!status.ready) return null;
+        const reward = DAILY_REWARDS[status.day - 1];
+        get()._changeStock(reward.boosters, reward.coins, { daily: { day: status.day, last: dayKey(now) } });
+        playSfx('win');
+        return reward;
+    },
+
+    // Star chest. Returns the reward or null if the chest isn't full yet.
+    openChest: (rng = Math.random) => {
+        const { progress } = get();
+        if (!chestStatus(totalStars(progress), progress.chests).ready) return null;
+        const reward = chestReward(rng);
+        get()._changeStock(reward.boosters, reward.coins, { chests: progress.chests + 1 });
+        playSfx('win');
+        return reward;
     },
 
     // Shop: item is a booster name or 'bundle'. Returns whether the purchase went through.
